@@ -6,7 +6,7 @@ import heapq
 import operator
 import os
 
-
+# 哈喽！
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128

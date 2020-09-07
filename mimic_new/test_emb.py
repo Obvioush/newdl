@@ -7,7 +7,7 @@ import operator
 import os
 
 
-_TEST_RATIO = 0.2
+_TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 

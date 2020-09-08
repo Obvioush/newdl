@@ -5,17 +5,18 @@ import numpy as np
 import heapq
 import operator
 import os
+from collections import OrderedDict
 
 
-_TEST_RATIO = 0.2
+_TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
-
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
 
 def load_data(seqFile, labelFile, treeFile=''):
     sequences = np.array(pickle.load(open(seqFile, 'rb')))
@@ -78,35 +79,32 @@ def load_data(seqFile, labelFile, treeFile=''):
 def padMatrix(seqs, labels):
     lengths = np.array([len(seq) for seq in seqs]) - 1
     n_samples = len(seqs)
-    # maxlen = np.max(lengths)
-    # 需要给maxlen定值，否则训练集和验证集上的maxlen不一致
-    maxlen = 41
+    maxlen = np.max(lengths)
 
     inputDimSize = calculate_dimSize('./resource/process_data/process.dataseqs')
     numClass = calculate_dimSize('./resource/process_data/process.labelseqs')
 
-    x = np.zeros((n_samples, maxlen, inputDimSize)).astype(np.float32)
-    y = np.zeros((n_samples, maxlen, numClass)).astype(np.float32)
-    # mask = np.zeros((maxlen, n_samples)).astype(np.float32)
+    x = np.zeros((maxlen, n_samples, inputDimSize)).astype(np.float32)
+    y = np.zeros((maxlen, n_samples, numClass)).astype(np.float32)
+    mask = np.zeros((maxlen, n_samples)).astype(np.float32)
 
     for idx, (seq, lseq) in enumerate(zip(seqs,labels)):
-        for xvec, subseq in zip(x[idx,:,:], seq[:-1]):
+        for xvec, subseq in zip(x[:,idx,:], seq[:-1]):
             xvec[subseq] = 1.
-        for yvec, subseq in zip(y[idx,:,:], lseq[1:]):
+        for yvec, subseq in zip(y[:,idx,:], lseq[1:]):
             yvec[subseq] = 1.
-        # mask[:lengths[idx], idx] = 1.
+        mask[:lengths[idx], idx] = 1.
 
     lengths = np.array(lengths, dtype=np.float32)
 
-    return x, y, lengths
+    return x, y, mask, lengths
 
 
 def padMatrix1(seqs, labels, treeseqs):
-    # -1是去除序列中最后一个数组，1,2,...,n-1
     lengths = np.array([len(seq) for seq in seqs]) - 1
     n_samples = len(seqs)
-    maxlen = 41
     # maxlen = np.max(lengths)
+    maxlen = 41
 
     inputDimSize = calculate_dimSize('./resource/process_data/process.dataseqs')
     numClass = calculate_dimSize('./resource/process_data/process.labelseqs')
@@ -221,118 +219,82 @@ def process_label(labelSeqs):
 #
 #     return context_vector, attention_weights
 
-# class KnowledgeAttention(keras.Model):
-#     def __init__(self, units):
-#         super(KnowledgeAttention, self).__init__()
-#         self.W1 = keras.layers.Dense(units)
-#         self.W2 = keras.layers.Dense(units)
-#         self.V = keras.layers.Dense(1)
-#
-#
-#     def call(self, knowledge_onehot, encoder_outputs):
-#         # decoder_hidden.shape:(batch_size, length, units)
-#         # encoder_outputs.shape(batch_size, length, units)
-#
-#         # before V: (batch_size, length, units)
-#         # after V: (batch_size, length, 1)
-#         context_vector_all = None
-#         for i in range(encoder_outputs.shape[1]):
-#             encoder_output = tf.expand_dims(encoder_outputs[:,i,:],1)
-#             score = self.V(tf.nn.tanh(
-#                 self.W1(encoder_output) + self.W2(knowledge_onehot)))
-#             # shape: (batch_size, length, 1)
-#             attention_weights = tf.nn.softmax(score, axis=1)
-#             # context_vector.shape: (batch_size, length, units)
-#             context_vector = attention_weights * knowledge_onehot
-#             # context_vector.shape: (batch_size, units)
-#             context_vector = tf.reduce_sum(context_vector, axis=1)
-#             context_vector = tf.expand_dims(context_vector,1)
-#             if context_vector_all is None:
-#                 context_vector_all = context_vector
-#             else:
-#                 context_vector_all = keras.layers.concatenate([context_vector_all,context_vector],axis=1)
-#
-#         return context_vector_all
+def generate_attention(tparams, leaves, ancestors):
+    attentionInput = keras.layers.concatenate([tparams['W_emb'][leaves], tparams['W_emb'][ancestors]], axis=2)
+    print(attentionInput.shape)
+    mlpOutput = tf.nn.tanh(tf.matmul(attentionInput, tparams['W_attention']) + tparams['b_attention'])
+    print(mlpOutput.shape)
+    preAttention = tf.multiply(mlpOutput, tparams['v_attention'])
+    print(preAttention.shape)
+    attention = tf.nn.softmax(preAttention)
+    print(attention.shape)
+    return attention
 
-class KAMEAttention(keras.Model):
-    def __init__(self):
-        super(KAMEAttention, self).__init__()
-        # self.W1 = keras.layers.Dense(units)
-        # self.W2 = keras.layers.Dense(units)
-        # self.V = keras.layers.Dense(1)
+def build_tree(treeFile):
+    treeMap = pickle.load(open(treeFile, 'rb'))
+    ancestors = np.array(list(treeMap.values())).astype('int32')
+    ancSize = ancestors.shape[1]
+    leaves = []
+    for k in treeMap.keys():
+        leaves.append([k] * ancSize)
+    leaves = np.array(leaves).astype('int32')
+    return leaves, ancestors
 
-    # tree_onehot, rnn_ht
-    def call(self, Lt, rnn_ht):
-        # Lt.shape:(batch_size, length, size, units)=>(5250,41,84,128)
-        # rnn_ht.shape:(batch_size, length, units) =>(5250,41,128)
+def init_params(a):
+    params = OrderedDict()
+    params['W_emb'] = a['W_emb']
 
-        # ht.shape:(batch_size, length, size, units)=>(5250,41,1,128)
-        ht = tf.expand_dims(rnn_ht, 2)
+    params['W_attention'] = a['W_attention']
+    params['b_attention'] = a['b_attention']
+    params['v_attention'] = a['v_attention']
 
-        # score.shape:(batch_size, length, size, 1)
-        score = tf.multiply(ht, Lt)
+    params['W_gru'] = a['W_gru']
+    params['U_gru'] = a['U_gru']
+    params['b_gru'] = a['b_gru']
 
-        # (Alpha)attention_weights.shape:(batch_size, length, size, 1)
-        attention_weights = tf.nn.softmax(score, axis=2)
+    params['W_output'] = a['W_output']
+    params['b_output'] = a['b_output']
 
-        # context_vector.shape: (batch_size, length, size, units)
-        # tensorflow自己做扩展，把Alpha的1扩展为units
-        context_vector = attention_weights * Lt
+    return params
 
-        # 在size维度求和，context_vector.shape:(batch_size, length, units)
-        context_vector = tf.reduce_sum(context_vector, axis=2)
+def init_tparams(params):
+    tparams = OrderedDict()
+    for key, value in params.items():
+        tparams[key] = tf.Variable(value, name=key)
+    return tparams
 
-        return context_vector
-        #
-        # for i in range(encoder_outputs.shape[1]):
-        #     encoder_output = tf.expand_dims(encoder_outputs[:,i,:],1)
-        #     # score = self.V(tf.nn.tanh(
-        #     #     self.W1(encoder_output) + self.W2(knowledge_onehot)))
-        #
-        #
-        #     # shape: (batch_size, length, 1)
-        #     attention_weights = tf.nn.softmax(score, axis=1)
-        #     # context_vector.shape: (batch_size, length, units)
-        #     context_vector = attention_weights * knowledge_onehot
-        #     # context_vector.shape: (batch_size, units)
-        #     context_vector = tf.reduce_sum(context_vector, axis=1)
-        #     context_vector = tf.expand_dims(context_vector,1)
-        #     if context_vector_all is None:
-        #         context_vector_all = context_vector
-        #     else:
-        #         context_vector_all = keras.layers.concatenate([context_vector_all,context_vector],axis=1)
-        #
-        # return context_vector_all
+class KnowledgeAttention(keras.Model):
+    def __init__(self, units):
+        super(KnowledgeAttention, self).__init__()
+        self.W1 = keras.layers.Dense(units)
+        self.W2 = keras.layers.Dense(units)
+        self.V = keras.layers.Dense(1)
 
 
-def kame_knowledgematrix(treeseq_set, emb):
-    # 和患者输入保持一致，访问为1到n-1
-    for i in range(len(treeseq_set)):
-        treeseq_set[i] = treeseq_set[i][:-1]
+    def call(self, knowledge_onehot, encoder_outputs):
+        # decoder_hidden.shape:(batch_size, length, units)
+        # encoder_outputs.shape(batch_size, length, units)
 
-    zerovec = np.zeros((84, 728)).astype(np.float32)
-    ts = []
-    for i in treeseq_set:
-        count = 0
-        a = []
-        for j in i:
-            # 变为onehot
-            temp = keras.utils.to_categorical(j)
-            if len(temp) < 84:
-                zerovec1 = np.zeros((84-len(temp), 728)).astype(np.float32)
-                temp = np.r_[temp, zerovec1]
-            count += 1
-            a.append(temp)
-        while count < 41:
-            a.append(zerovec)
-            count += 1
-        ts.append(a)
+        # before V: (batch_size, length, units)
+        # after V: (batch_size, length, 1)
+        context_vector_all = None
+        for i in range(encoder_outputs.shape[1]):
+            encoder_output = tf.expand_dims(encoder_outputs[:,i,:],1)
+            score = self.V(tf.nn.tanh(
+                self.W1(encoder_output) + self.W2(knowledge_onehot)))
+            # shape: (batch_size, length, 1)
+            attention_weights = tf.nn.softmax(score, axis=1)
+            # context_vector.shape: (batch_size, length, units)
+            context_vector = attention_weights * knowledge_onehot
+            # context_vector.shape: (batch_size, units)
+            context_vector = tf.reduce_sum(context_vector, axis=1)
+            context_vector = tf.expand_dims(context_vector,1)
+            if context_vector_all is None:
+                context_vector_all = context_vector
+            else:
+                context_vector_all = keras.layers.concatenate([context_vector_all,context_vector],axis=1)
 
-    for i in range(len(ts)):
-        for j in range(len(ts[i])):
-            ts[i][j] = np.matmul(ts[i][j], emb)
-
-    return np.array(ts)
+        return context_vector_all
 
 
 if __name__ == '__main__':
@@ -345,6 +307,7 @@ if __name__ == '__main__':
     node2vecFile = './resource/embedding/node2vec_test.npy'
     node2vecPatientFile = './resource/embedding/node2vec_patient_test.npy'
 
+    a = np.load('./resource/embedding/gram_128.33.npz')
     # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
     # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
     # types = pickle.load(open('./resource/build_trees.types', 'rb'))
@@ -355,34 +318,15 @@ if __name__ == '__main__':
     node2vec_patient_emb = np.load(node2vecPatientFile).astype(np.float32)
     node2vec_emb = np.load(node2vecFile).astype(np.float32)
 
-    # 测试tree的序列
-    # tree_seq = pickle.load(open(treeFile, 'rb'))
-
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
-    x, y, lengths = padMatrix(train_set[0], train_set[1])
-    x_valid, y_valid, valid_lengths = padMatrix(valid_set[0], valid_set[1])
-    x_test, y_test, test_lengths = padMatrix(test_set[0], test_set[1])
-
-    # tree_train = np.zeros((len(train_set[2]), 41, 84, 128))
-    # tree_train = []
-    # for i in train_set[2]:
-    #     a = []
-    #     for j in i:
-    #         b = []
-    #         for k in j:
-    #             b.append(node2vec_emb[k])
-    #         a.append(b)
-    #     tree_train.append(a)
-
-    # KAME knowledge embedding
-    tree = kame_knowledgematrix(train_set[2], node2vec_emb)
-    tree_valid = kame_knowledgematrix(valid_set[2], node2vec_emb)
-    tree_test = kame_knowledgematrix(test_set[2], node2vec_emb)
+    x, y, tree, lengths = padMatrix1(train_set[0], train_set[1], train_set[2])
+    x_valid, y_valid, tree_valid, valid_lengths = padMatrix1(valid_set[0], valid_set[1], valid_set[2])
+    x_test, y_test, tree_test, test_lengths = padMatrix1(test_set[0], test_set[1], test_set[2])
 
     # glove patient embedding
-    x = tf.tanh(tf.matmul(x, tf.expand_dims(glove_patient_emb, 0)))
-    x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0)))
-    x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0)))
+    # x = tf.tanh(tf.matmul(x, tf.expand_dims(glove_patient_emb, 0)))
+    # x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0)))
+    # x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0)))
 
     # node2vec patient embedding
     # x = tf.tanh(tf.matmul(x, tf.expand_dims(node2vec_patient_emb, 0)))
@@ -394,38 +338,86 @@ if __name__ == '__main__':
     # tree_valid = tf.matmul(tree_valid, tf.expand_dims(glove_knowledge_emb, 0))
     # tree_test = tf.matmul(tree_test, tf.expand_dims(glove_knowledge_emb, 0))
 
-    # # node2vec knowledge embedding
+    # node2vec knowledge embedding
     # tree = tf.matmul(tree, tf.expand_dims(node2vec_emb, 0))
     # tree_valid = tf.matmul(tree_valid, tf.expand_dims(node2vec_emb, 0))
     # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
 
+    leavesList = []
+    ancestorsList = []
+    for i in range(5, 1, -1):
+        leaves, ancestors = build_tree('./resource/trees.level' + str(i) + '.pk')
+        # sharedLeaves = tf.Variable(leaves, name='leaves' + str(i))
+        # sharedAncestors = tf.Variable(ancestors, name='ancestors' + str(i))
+        leavesList.append(leaves)
+        ancestorsList.append(ancestors)
 
-    gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
-    mask = keras.layers.Masking(mask_value=0)(gru_input)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.2)(mask)
+    params = init_params(a)
+    tparams = init_tparams(params)
+    # tparams = init_tparams(params)
+    embList = []
+    for leaves, ancestors in zip(leavesList, ancestorsList):
+        tempAttention = generate_attention(params, leaves, ancestors)
+        tempEmb = (params['W_emb'][ancestors] * tempAttention)
+        tempEmb = tf.reduce_sum(tempEmb, axis=1)
+        embList.append(tempEmb)
 
-    tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
-    mask1 = keras.layers.Masking(mask_value=0)(tree_input)
+    emb = tf.concat(embList, axis=0)
+    # np.save('./resource/embedding/gram_emb', np.array(emb))
+
+    x = tf.tanh(tf.matmul(x, tf.expand_dims(emb, 0)))
+    x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(emb, 0)))
+    x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(emb, 0)))
+
+    model = keras.models.Sequential([
+        # 添加一个Masking层，这个层的input_shape=(timesteps, features)
+        keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
+        # keras.layers.LSTM(64, return_sequences=True),
+        # keras.layers.SimpleRNN(1800, return_sequences=True),
+        keras.layers.GRU(512, return_sequences=True, dropout=0.2),
+        # keras.layers.SimpleRNN(64, return_sequences=True),
+        # keras.layers.TimeDistributed(keras.layers.Dense(283, activation='softmax'))
+        keras.layers.Dense(283, activation='softmax')
+    ])
+
+    # gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
+    # mask = keras.layers.Masking(mask_value=0)(gru_input)
+    # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(mask)
+    #
+    # tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
+    # mask1 = keras.layers.Masking(mask_value=0)(tree_input)
     # mask1 = keras.layers.Dense(gru_dimentions)(mask1)
-    ka = KAMEAttention()
-    context_vector = ka(mask1, gru_out)
-    # knowledge_vector = tf.tile(tf.expand_dims(context_vector, 1), [1, x.shape[1], 1])
-    # s = keras.layers.concatenate([gru_out, knowledge_vector], axis=-1)
-    s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
-    main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
-
-    model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
+    # ka = KnowledgeAttention(units=128)
+    # context_vector = ka(mask1, gru_out)
+    # # knowledge_vector = tf.tile(tf.expand_dims(context_vector, 1), [1, x.shape[1], 1])
+    # # s = keras.layers.concatenate([gru_out, knowledge_vector], axis=-1)
+    # s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
+    #
+    # main_output = keras.layers.Dense(283, activation='softmax')(s)
+    # # main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
+    #
+    # model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
-    history = model.fit([x, tree], y,
-                        epochs=60,
+    history = model.fit(x, y,
+                        epochs=100,
                         batch_size=100,
-                        validation_data=([x_valid, tree_valid], y_valid))
+                        validation_data=(x_valid, y_valid))
 
-    preds = model.predict([x_test, tree_test], batch_size=100)
+    preds = model.predict(x_test, batch_size=100)
 
+    # def recallTop(y_true, y_pred, rank=[10, 20, 30]):
+    #     recall = list()
+    #     for i in range(len(y_pred)):
+    #         thisOne = list()
+    #         codes = y_true[i]
+    #         tops = y_pred[i]
+    #         for rk in rank:
+    #             thisOne.append(len(set(codes).intersection(set(tops[:rk])))*1.0/len(set(codes)))
+    #         recall.append(thisOne)
+    #     return (np.array(recall)).mean(axis=0).tolist()
 
     def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
         recall = list()

@@ -130,40 +130,6 @@ def padMatrix1(seqs, labels, treeseqs):
     return x, y, tree, lengths
 
 
-def get_random_weight(dim1, dim2, left=-0.1, right=0.1):
-    return np.random.uniform(left, right, (dim1, dim2)).astype(np.float32)
-
-@tf.function
-def generate_latentMatrix(treesonehot):
-    x = []
-    testA = get_random_weight(gru_dimentions, 729)
-
-    for patient in treesonehot:
-        newPatient = []
-        for visit in patient:
-            newVisit = []
-            for index, code in enumerate(visit):
-                if code == 1:
-                    newVisit.append(testA[:, index])
-            if newVisit:
-                newPatient.append(np.array(newVisit))
-            else:
-                newPatient.append(newPatient[-1])
-        x.append(np.array(newPatient))
-
-    # for patient in treesonehot:
-    #     newPatient = []
-    #     for visit in patient:
-    #         newVisit = []
-    #         for code in visit:
-    #             newVisit.append(testA[:, code])
-    #         newPatient.append(newVisit)
-    #     if len(patient) < 41:
-    #          #
-    #     x.append(newPatient)
-    return x
-
-
 def calculate_dimSize(seqFile):
     seqs = pickle.load(open(seqFile, 'rb'))
     codeSet = set()
@@ -182,76 +148,46 @@ def process_label(labelSeqs):
     return newlabelSeq
 
 
-# class TreeEncoder(keras.Model):
-#     def __init__(self, vocab_size, embedding_units, encoding_units,
-#                  batch_size):
-#         super(TreeEncoder, self).__init__()
-#         self.batch_size = batch_size
-#         self.encoding_units = encoding_units
-#         self.embedding = keras.layers.Embedding(vocab_size, embedding_units)
-#         self.V = keras.layers.Dense(1)
-#         self.temp = np.zeros(729)
-#         self.W = self.add_weight(name='att_weight',
-#                                  shape=(200, 729),
-#                                  initializer='uniform',
-#                                  trainable=True)
-#
-#     def call(self, x, hidden):
-#         x = self.embedding(x)
-#
-#
-#
-#         output, state = self.gru(x, initial_state=hidden)
-#         return output, state
+class ScaledDotProductAttention(keras.layers.Layer):
+    def __init__(self, output_dim, **kwargs):
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.output_dim = output_dim
+        super(ScaledDotProductAttention, self).__init__(**kwargs)
 
+    def build(self, input_shape):
+        # 为该层创建一个可训练的权重
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.kernel = self.add_weight(name='kernel',
+                                      shape=(3, input_shape[0][2], self.output_dim),
+                                      initializer='uniform',
+                                      trainable=True)
 
-# def Knowledgeattention(knowledge_onehot, encoder_outputs):
-#     # latent_knowledge_matrix.shape:(batch_size, length, ancestorNum, units)
-#     # encoder_outputs.shape(batch_size, length, units)
-#     latent_knowledge_matrix = generate_latentMatrix(knowledge_onehot)
-#     encoder_outputs_with_ancestorNum_axis = tf.expand_dims(encoder_outputs, 2)
-#     score = keras.layers.dot(latent_knowledge_matrix, encoder_outputs_with_ancestorNum_axis)
-#     # shape: (batch_size, length, ancestorNum, 1)
-#     attention_weights = tf.nn.softmax(score, axis=1)
-#     # context_vector.shape: (batch_size, length, ancestorNum, units)
-#     context_vector = attention_weights * latent_knowledge_matrix
-#     # context_vector.shape: (batch_size, length, units)
-#     context_vector = tf.reduce_sum(context_vector, axis=1)
-#
-#     return context_vector, attention_weights
+        super(ScaledDotProductAttention, self).build(input_shape)  # 一定要在最后调用它
 
-class KnowledgeAttention(keras.Model):
-    def __init__(self, units):
-        super(KnowledgeAttention, self).__init__()
-        self.W1 = keras.layers.Dense(units)
-        self.W2 = keras.layers.Dense(units)
-        self.V = keras.layers.Dense(1)
+    def call(self, inputs):
+        Lt, rnn_ht = inputs
+        WQ = K.dot(rnn_ht, self.kernel[0])
+        WK = K.dot(Lt, self.kernel[1])
+        WV = K.dot(Lt, self.kernel[2])
+        # WQ.shape (None, 41, 128)
+        # print("WQ.shape", WQ.shape)
+        # 转置 K.permute_dimensions(WK, [0, 2, 1]).shape (None, 128, 41)
+        # print("K.permute_dimensions(WK, [0, 2, 1]).shape", K.permute_dimensions(WK, [0, 2, 1]).shape)
 
+        QK = K.batch_dot(WQ, K.permute_dimensions(WK, [0, 2, 1]))
 
-    def call(self, knowledge_onehot, encoder_outputs):
-        # decoder_hidden.shape:(batch_size, length, units)
-        # encoder_outputs.shape(batch_size, length, units)
+        QK = QK / (64 ** 0.5)
 
-        # before V: (batch_size, length, units)
-        # after V: (batch_size, length, 1)
-        context_vector_all = None
-        for i in range(encoder_outputs.shape[1]):
-            encoder_output = tf.expand_dims(encoder_outputs[:,i,:],1)
-            score = self.V(tf.nn.tanh(
-                self.W1(encoder_output) + self.W2(knowledge_onehot)))
-            # shape: (batch_size, length, 1)
-            attention_weights = tf.nn.softmax(score, axis=1)
-            # context_vector.shape: (batch_size, length, units)
-            context_vector = attention_weights * knowledge_onehot
-            # context_vector.shape: (batch_size, units)
-            context_vector = tf.reduce_sum(context_vector, axis=1)
-            context_vector = tf.expand_dims(context_vector,1)
-            if context_vector_all is None:
-                context_vector_all = context_vector
-            else:
-                context_vector_all = keras.layers.concatenate([context_vector_all,context_vector],axis=1)
+        weights = K.softmax(QK)
+        # QK.shape (None, 41, 41)
+        # print("QK.shape", weights.shape)
 
-        return context_vector_all
+        context_vector = K.batch_dot(weights, WV)
+
+        return context_vector, weights
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1], self.output_dim)
 
 
 class PositionEncoding(Layer):
@@ -540,8 +476,7 @@ if __name__ == '__main__':
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
     # mask1 = keras.layers.Dense(gru_dimentions)(mask1)
-    ka = KnowledgeAttention(units=128)
-    context_vector = ka(mask1, gru_out)
+    context_vector, weights = ScaledDotProductAttention(output_dim=128)([mask1, gru_out])
     # knowledge_vector = tf.tile(tf.expand_dims(context_vector, 1), [1, x.shape[1], 1])
     # s = keras.layers.concatenate([gru_out, knowledge_vector], axis=-1)
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)

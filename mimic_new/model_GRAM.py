@@ -374,7 +374,7 @@ if __name__ == '__main__':
         keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
         # keras.layers.LSTM(64, return_sequences=True),
         # keras.layers.SimpleRNN(1800, return_sequences=True),
-        keras.layers.GRU(512, return_sequences=True, dropout=0.2),
+        keras.layers.SimpleRNN(512, return_sequences=True, dropout=0.2),
         # keras.layers.SimpleRNN(64, return_sequences=True),
         # keras.layers.TimeDistributed(keras.layers.Dense(283, activation='softmax'))
         keras.layers.Dense(283, activation='softmax')

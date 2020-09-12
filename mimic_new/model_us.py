@@ -163,6 +163,13 @@ class ScaledDotProductAttention(keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         return (input_shape[0], input_shape[1], self.output_dim)
 
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'output_dim': self.output_dim,
+        })
+        return config
+
 
 if __name__ == '__main__':
     seqFile = './resource/process_data/process.dataseqs'
@@ -189,9 +196,9 @@ if __name__ == '__main__':
     x_test, y_test, tree_test, test_lengths = padMatrix(test_set[0], test_set[1], test_set[2])
 
     # glove patient embedding
-    x = tf.tanh(tf.matmul(x, tf.expand_dims(glove_patient_emb, 0)))
-    x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0)))
-    x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0)))
+    x = tf.matmul(x, tf.expand_dims(glove_patient_emb, 0))
+    x_valid = tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0))
+    x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
 
     # node2vec patient embedding
     # x = tf.tanh(tf.matmul(x, tf.expand_dims(node2vec_patient_emb, 0)))
@@ -210,7 +217,8 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True)(mask)
+    v = keras.layers.Activation('tanh')(mask)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
@@ -222,13 +230,18 @@ if __name__ == '__main__':
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\us_03', monitor='val_accuracy', mode='auto',
+                                                    save_best_only='True')
+
+    callback_lists = [checkpoint]
     model.summary()
-    model.compile(optimizer='adam', loss='binary_crossentropy')
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics='accuracy')
 
     history = model.fit([x, tree], y,
-                        epochs=40,
+                        epochs=100,
                         batch_size=100,
-                        validation_data=([x_valid, tree_valid], y_valid))
+                        validation_data=([x_valid, tree_valid], y_valid),
+                        callbacks=callback_lists)
 
     preds = model.predict([x_test, tree_test], batch_size=100)
 

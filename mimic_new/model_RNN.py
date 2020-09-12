@@ -135,17 +135,17 @@ if __name__ == '__main__':
     model = keras.models.Sequential([
         # 添加一个Masking层，这个层的input_shape=(timesteps, features)
         keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
-        keras.layers.Dense(128, activation='relu'),
-        keras.layers.GRU(128, return_sequences=True, dropout=0.5),
+        keras.layers.Activation('relu'),
+        keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
         keras.layers.Dense(283, activation='softmax')
     ])
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\mimic_rnn_05', monitor='val_loss', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\RNN_02', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]
-    model.compile(optimizer='adam', loss='binary_crossentropy')
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics='accuracy')
 
     history = model.fit(x, y,
                         epochs=100,

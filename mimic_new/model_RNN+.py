@@ -4,15 +4,16 @@ import _pickle as pickle
 import numpy as np
 import heapq
 import operator
+import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 
-# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-# for gpu in gpus:
-#     tf.config.experimental.set_memory_growth(gpu, True)
-# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def load_data(seqFile, labelFile, treeFile=''):
@@ -161,28 +162,28 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Dense(128, activation='relu')(mask)
+    v = keras.layers.Activation('relu')(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
     context_vector = LocationbasedAttention()(gru_out)
 
     ht = keras.layers.concatenate([context_vector, gru_out], axis=-1)
-    ht = keras.layers.Dense(128, activation='tanh')(ht)
+    ht = keras.layers.Activation('tanh')(ht)
     main_output = keras.layers.Dense(283, activation='softmax')(ht)
 
     model = keras.models.Model(inputs=gru_input, outputs=main_output)
 
     model.summary()
-    # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\mimic_rnn_05', monitor='val_loss', mode='auto',
-    #                                                 save_best_only='True')
-    #
-    # callback_lists = [checkpoint]
-    model.compile(optimizer='adam', loss='binary_crossentropy')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\RNN+_final_02', monitor='val_accuracy', mode='auto',
+                                                    save_best_only='True')
+
+    callback_lists = [checkpoint]
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics='accuracy')
 
     history = model.fit(x, y,
-                        epochs=1,
+                        epochs=100,
                         batch_size=100,
-                        validation_data=(x_valid, y_valid))
-                        # callbacks=callback_lists)
+                        validation_data=(x_valid, y_valid),
+                        callbacks=callback_lists)
 
     preds = model.predict(x_test, batch_size=100)
 

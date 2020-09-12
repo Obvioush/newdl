@@ -127,7 +127,8 @@ class KAMEAttention(keras.Model):
         # self.V = keras.layers.Dense(1)
 
     # tree_onehot, rnn_ht
-    def call(self, Lt, rnn_ht):
+    def call(self, inputs):
+        Lt, rnn_ht = inputs
         # Lt.shape:(batch_size, length, size, units)=>(5250,41,84,128)
         # rnn_ht.shape:(batch_size, length, units) =>(5250,41,128)
 
@@ -189,6 +190,7 @@ if __name__ == '__main__':
     gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
     node2vecFile = './resource/embedding/node2vec_test.npy'
     node2vecPatientFile = './resource/embedding/node2vec_patient_test.npy'
+    gramembFile = './resource/embedding/gram_emb.npy'
 
     # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
     # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
@@ -199,6 +201,7 @@ if __name__ == '__main__':
     glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
     node2vec_patient_emb = np.load(node2vecPatientFile).astype(np.float32)
     node2vec_emb = np.load(node2vecFile).astype(np.float32)
+    gram_emb = np.load(gramembFile).astype(np.float32)
 
     # 测试tree的序列
     # tree_seq = pickle.load(open(treeFile, 'rb'))
@@ -220,14 +223,14 @@ if __name__ == '__main__':
     #     tree_train.append(a)
 
     # KAME knowledge embedding
-    tree = kame_knowledgematrix(train_set[2], node2vec_emb)
-    tree_valid = kame_knowledgematrix(valid_set[2], node2vec_emb)
-    tree_test = kame_knowledgematrix(test_set[2], node2vec_emb)
+    tree = kame_knowledgematrix(train_set[2], glove_knowledge_emb)
+    tree_valid = kame_knowledgematrix(valid_set[2], glove_knowledge_emb)
+    tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
 
-    # glove patient embedding
-    x = tf.tanh(tf.matmul(x, tf.expand_dims(glove_patient_emb, 0)))
-    x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0)))
-    x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0)))
+    # gram patient embedding
+    x = tf.matmul(x, tf.expand_dims(gram_emb, 0))
+    x_valid = tf.matmul(x_valid, tf.expand_dims(gram_emb, 0))
+    x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
 
     # node2vec patient embedding
     # x = tf.tanh(tf.matmul(x, tf.expand_dims(node2vec_patient_emb, 0)))
@@ -247,13 +250,13 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.2)(mask)
+    v = keras.layers.Activation('tanh')(mask)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
     # mask1 = keras.layers.Dense(gru_dimentions)(mask1)
-    ka = KAMEAttention()
-    context_vector = ka(mask1, gru_out)
+    context_vector = KAMEAttention()([mask1, gru_out])
     # knowledge_vector = tf.tile(tf.expand_dims(context_vector, 1), [1, x.shape[1], 1])
     # s = keras.layers.concatenate([gru_out, knowledge_vector], axis=-1)
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
@@ -262,12 +265,17 @@ if __name__ == '__main__':
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
-    model.compile(optimizer='adam', loss='binary_crossentropy')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\kame_02', monitor='val_accuracy', mode='auto',
+                                                    save_best_only='True')
+
+    callback_lists = [checkpoint]
+    model.compile(optimizer='adam', loss='binary_crossentropy',metrics='accuracy')
 
     history = model.fit([x, tree], y,
-                        epochs=60,
+                        epochs=100,
                         batch_size=100,
-                        validation_data=([x_valid, tree_valid], y_valid))
+                        validation_data=([x_valid, tree_valid], y_valid),
+                        callbacks=callback_lists)
 
     preds = model.predict([x_test, tree_test], batch_size=100)
 

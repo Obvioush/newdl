@@ -206,7 +206,7 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_final')
 
     # Dipole模型
-    model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_final')
+    model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_01')
 
     # GRAM模型
     # gram_emb = np.load(gramembFile).astype(np.float32)

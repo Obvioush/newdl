@@ -121,38 +121,38 @@ def process_label(labelSeqs):
     return newlabelSeq
 
 
-class BahdanauAttention(keras.Model):
-    def __init__(self, units):
-        super(BahdanauAttention, self).__init__()
-        self.W1 = keras.layers.Dense(units)
-        self.W2 = keras.layers.Dense(units)
-        self.V = keras.layers.Dense(1)
-
-    def call(self, inputs):
-        encoder_outputs, decoder_hidden = inputs
-        context_vector_all = None
-        for t in range(decoder_hidden.shape[1]):  # decoder_hidden.shape[1]为时间步数，41
-            # after ht: (batch_size, 1, units)
-            ht = tf.expand_dims(decoder_hidden[:, t, :], 1)
-            if t == 0:
-                context_vector_all = ht
-                continue
-
-            score = self.V(tf.nn.tanh(
-                            self.W1(encoder_outputs) + self.W2(ht)))
-            # shape: (batch_size, length, 1)
-            score = score[:, :t, :]
-            attention_weights = tf.nn.softmax(score, axis=1)
-            # context_vector.shape: (batch_size, length, units)
-            hi = encoder_outputs[:, :t, :]
-            context_vector = attention_weights * hi
-            # context_vector.shape: (batch_size, units)
-            context_vector = tf.reduce_sum(context_vector, axis=1)
-            context_vector = tf.expand_dims(context_vector, 1)
-
-            context_vector_all = keras.layers.concatenate([context_vector_all, context_vector], axis=1)
-
-        return context_vector_all
+# class BahdanauAttention(keras.Model):
+#     def __init__(self, units):
+#         super(BahdanauAttention, self).__init__()
+#         self.W1 = keras.layers.Dense(units)
+#         self.W2 = keras.layers.Dense(units)
+#         self.V = keras.layers.Dense(1)
+#
+#     def call(self, inputs):
+#         encoder_outputs, decoder_hidden = inputs
+#         context_vector_all = None
+#         for t in range(decoder_hidden.shape[1]):  # decoder_hidden.shape[1]为时间步数，41
+#             # after ht: (batch_size, 1, units)
+#             ht = tf.expand_dims(decoder_hidden[:, t, :], 1)
+#             if t == 0:
+#                 context_vector_all = ht
+#                 continue
+#
+#             score = self.V(tf.nn.tanh(
+#                             self.W1(encoder_outputs) + self.W2(ht)))
+#             # shape: (batch_size, length, 1)
+#             score = score[:, :t, :]
+#             attention_weights = tf.nn.softmax(score, axis=1)
+#             # context_vector.shape: (batch_size, length, units)
+#             hi = encoder_outputs[:, :t, :]
+#             context_vector = attention_weights * hi
+#             # context_vector.shape: (batch_size, units)
+#             context_vector = tf.reduce_sum(context_vector, axis=1)
+#             context_vector = tf.expand_dims(context_vector, 1)
+#
+#             context_vector_all = keras.layers.concatenate([context_vector_all, context_vector], axis=1)
+#
+#         return context_vector_all
 
 
 class LocationbasedAttention(keras.Model):
@@ -196,19 +196,21 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Activation('relu')(mask)
+    v = keras.layers.Dense(128, activation='relu')(mask)
+    v = keras.layers.Dropout(rate=0.5)(v)
     gru_out = keras.layers.Bidirectional(keras.layers.GRU(gru_dimentions, return_sequences=True,
                                                         dropout=0.5))(v)
     # context_vector = BahdanauAttention(units=128)([gru_out, gru_out])
     context_vector = LocationbasedAttention()(gru_out)
     ht = keras.layers.concatenate([context_vector, gru_out], axis=-1)
-    ht = keras.layers.Activation('tanh')(ht)
+    ht = keras.layers.Dense(128, activation='tanh', use_bias=False)(ht)
+    ht = keras.layers.Dropout(rate=0.5)(ht)
     main_output = keras.layers.Dense(283, activation='softmax')(ht)
 
     model = keras.models.Model(inputs=gru_input, outputs=main_output)
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\Dipole_final', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\Dipole_01', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

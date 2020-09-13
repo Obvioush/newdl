@@ -135,7 +135,7 @@ if __name__ == '__main__':
     model = keras.models.Sequential([
         # 添加一个Masking层，这个层的input_shape=(timesteps, features)
         keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
-        keras.layers.Activation('relu'),
+        # keras.layers.Activation('relu'),
         keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
         keras.layers.Dense(283, activation='softmax')
     ])

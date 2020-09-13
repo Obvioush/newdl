@@ -11,6 +11,8 @@ from collections import OrderedDict
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
+embDimSize = 128
+attentionDimSize = 128
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -148,14 +150,25 @@ def process_label(labelSeqs):
 
 
 def generate_attention(tparams, leaves, ancestors):
-    attentionInput = keras.layers.concatenate([gram_glove_emb[leaves], gram_glove_emb[ancestors]], axis=2)
-    print(attentionInput.shape)
-    V = keras.layers.Dense(1)
-    W = keras.layers.Dense(128)
-    mlpOutput = V(tf.nn.tanh(W(attentionInput)))
-    print(mlpOutput.shape)
-    attention = tf.nn.softmax(mlpOutput, axis=1)
-    print('attention.shape', attention.shape)
+    # attentionInput = keras.layers.concatenate([gram_glove_emb[leaves], gram_glove_emb[ancestors]], axis=2)
+    # print(attentionInput.shape)
+    # V = keras.layers.Dense(1)
+    # W = keras.layers.Dense(128)
+    # mlpOutput = V(tf.nn.tanh(W(attentionInput)))
+    # print(mlpOutput.shape)
+    # attention = tf.nn.softmax(mlpOutput, axis=1)
+    # print('attention.shape', attention.shape)
+    # return attention
+    attentionInput = tf.concat([tf.gather(tparams['W_emb'], leaves),
+                                tf.gather(tparams['W_emb'], ancestors)], axis=2)
+    print('attentionInput.shape：', attentionInput.shape)
+    mlpOutput = tf.tanh(tf.matmul(attentionInput, tparams['W_attention']) + tparams['b_attention'])
+    print('mlpOutput.shape：',mlpOutput.shape)
+    v = tf.transpose(tf.expand_dims(tparams['v_attention'], 0))
+    preAttention = tf.matmul(mlpOutput, v)
+    print('preAttention.shape:',preAttention.shape)
+    attention = tf.nn.softmax(preAttention, axis=1)
+    print('attention.shape:',attention.shape)
     return attention
 
 def build_tree(treeFile):
@@ -168,22 +181,18 @@ def build_tree(treeFile):
     leaves = np.array(leaves).astype('int32')
     return leaves, ancestors
 
-def init_params(a):
+def init_params(emb):
     params = OrderedDict()
-    params['W_emb'] = a['W_emb']
-
-    params['W_attention'] = a['W_attention']
-    params['b_attention'] = a['b_attention']
-    params['v_attention'] = a['v_attention']
-
-    params['W_gru'] = a['W_gru']
-    params['U_gru'] = a['U_gru']
-    params['b_gru'] = a['b_gru']
-
-    params['W_output'] = a['W_output']
-    params['b_output'] = a['b_output']
-
+    # params['W_emb'] = emb
+    # params['W_attention'] = get_random_weight(embDimSize * 2, attentionDimSize)
+    # params['b_attention'] = np.zeros(attentionDimSize).astype(np.float32)
+    # params['v_attention'] = np.random.uniform(-0.1, 0.1, attentionDimSize).astype(np.float32)
+    params['W_emb'] = gram_params['W_emb']
+    params['W_attention'] = gram_params['W_attention']
+    params['b_attention'] = gram_params['b_attention']
+    params['v_attention'] = gram_params['v_attention']
     return params
+
 
 def init_tparams(params):
     tparams = OrderedDict()
@@ -191,39 +200,9 @@ def init_tparams(params):
         tparams[key] = tf.Variable(value, name=key)
     return tparams
 
-class KnowledgeAttention(keras.Model):
-    def __init__(self, units):
-        super(KnowledgeAttention, self).__init__()
-        self.W1 = keras.layers.Dense(units)
-        self.W2 = keras.layers.Dense(units)
-        self.V = keras.layers.Dense(1)
 
-
-    def call(self, inputs):
-        knowledge_onehot, encoder_outputs = inputs
-        # decoder_hidden.shape:(batch_size, length, units)
-        # encoder_outputs.shape(batch_size, length, units)
-
-        # before V: (batch_size, length, units)
-        # after V: (batch_size, length, 1)
-        context_vector_all = None
-        for i in range(encoder_outputs.shape[1]):
-            encoder_output = tf.expand_dims(encoder_outputs[:,i,:],1)
-            score = self.V(tf.nn.tanh(
-                self.W1(encoder_output) + self.W2(knowledge_onehot)))
-            # shape: (batch_size, length, 1)
-            attention_weights = tf.nn.softmax(score, axis=1)
-            # context_vector.shape: (batch_size, length, units)
-            context_vector = attention_weights * knowledge_onehot
-            # context_vector.shape: (batch_size, units)
-            context_vector = tf.reduce_sum(context_vector, axis=1)
-            context_vector = tf.expand_dims(context_vector,1)
-            if context_vector_all is None:
-                context_vector_all = context_vector
-            else:
-                context_vector_all = keras.layers.concatenate([context_vector_all,context_vector],axis=1)
-
-        return context_vector_all
+def get_random_weight(dim1, dim2, left=-0.1, right=0.1):
+    return np.random.uniform(left, right, (dim1, dim2)).astype(np.float32)
 
 
 if __name__ == '__main__':
@@ -235,9 +214,9 @@ if __name__ == '__main__':
     gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
     node2vecFile = './resource/embedding/node2vec_test.npy'
     node2vecPatientFile = './resource/embedding/node2vec_patient_test.npy'
-    gramgloveFile = './resource/embedding/gram_glove_all.npy'
+    # gramgloveFile = './resource/embedding/gram_glove_all.npy'
 
-    # a = np.load('./resource/embedding/gram_128.33.npz')
+    gram_params = np.load('./resource/embedding/gram_128.33.npz')
     # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
     # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
     # types = pickle.load(open('./resource/build_trees.types', 'rb'))
@@ -247,7 +226,7 @@ if __name__ == '__main__':
     glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
     node2vec_patient_emb = np.load(node2vecPatientFile).astype(np.float32)
     node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    gram_glove_emb = np.load(gramgloveFile).astype(np.float32)
+    # gram_glove_emb = np.load(gramgloveFile).astype(np.float32)
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x, y, tree, lengths = padMatrix1(train_set[0], train_set[1], train_set[2])
@@ -278,23 +257,23 @@ if __name__ == '__main__':
     ancestorsList = []
     for i in range(5, 1, -1):
         leaves, ancestors = build_tree('./resource/trees.level' + str(i) + '.pk')
-        # sharedLeaves = tf.Variable(leaves, name='leaves' + str(i))
-        # sharedAncestors = tf.Variable(ancestors, name='ancestors' + str(i))
-        leavesList.append(leaves)
-        ancestorsList.append(ancestors)
+        VariableLeaves = tf.Variable(leaves, name='leaves' + str(i))
+        VariableAncestors = tf.Variable(ancestors, name='ancestors' + str(i))
+        leavesList.append(VariableLeaves)
+        ancestorsList.append(VariableAncestors)
 
-    # params = init_params(a)
-    # tparams = init_tparams(params)
+    params = init_params(gram_params)
+    tparams = init_tparams(params)
 
     embList = []
     for leaves, ancestors in zip(leavesList, ancestorsList):
-        tempAttention = generate_attention(gram_glove_emb, leaves, ancestors)
-        tempEmb = (gram_glove_emb[ancestors] * tempAttention)
+        tempAttention = generate_attention(tparams, leaves, ancestors)
+        tempEmb = tf.gather(tparams['W_emb'], ancestors) * tempAttention
         tempEmb = tf.reduce_sum(tempEmb, axis=1)
         embList.append(tempEmb)
 
     emb = tf.concat(embList, axis=0)
-    # np.save('./resource/embedding/gram_emb_final', np.array(emb))
+    np.save('./resource/embedding/gram_emb_final', np.array(emb))
 
     x = tf.matmul(x, tf.expand_dims(emb, 0))
     x_valid = tf.matmul(x_valid, tf.expand_dims(emb, 0))
@@ -327,7 +306,7 @@ if __name__ == '__main__':
     # model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\gram_final_02', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\gram_01', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

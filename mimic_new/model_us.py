@@ -245,16 +245,6 @@ if __name__ == '__main__':
 
     preds = model.predict([x_test, tree_test], batch_size=100)
 
-    # def recallTop(y_true, y_pred, rank=[10, 20, 30]):
-    #     recall = list()
-    #     for i in range(len(y_pred)):
-    #         thisOne = list()
-    #         codes = y_true[i]
-    #         tops = y_pred[i]
-    #         for rk in rank:
-    #             thisOne.append(len(set(codes).intersection(set(tops[:rk])))*1.0/len(set(codes)))
-    #         recall.append(thisOne)
-    #     return (np.array(recall)).mean(axis=0).tolist()
 
     def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
         recall = list()

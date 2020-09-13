@@ -192,30 +192,32 @@ if __name__ == '__main__':
     labelFile = './resource/process_data/process.labelseqs'
     treeFile = './resource/process_data/process_new.treeseqs'
     glovePatientFile = './resource/embedding/gram_128.npy'
+    gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
     node2vecFile = './resource/embedding/node2vec_test.npy'
+    gramembFile = './resource/embedding/gram_emb_final.npy'
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x_test, y_test, tree_test, test_lengths = padMatrix(test_set[0], test_set[1], test_set[2])
 
-    # # RNN模型
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN_01')
+    # RNN模型
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN_02')
 
     # RNN+模型
     # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_final')
 
     # Dipole模型
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_01')
+    model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_final')
 
     # GRAM模型
-    gram_emb = np.load('./resource/embedding/gram_emb_final.npy').astype(np.float32)
-    x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
-    model = tf.keras.models.load_model('G:\\模型训练保存\\gram_final_01')
+    # gram_emb = np.load(gramembFile).astype(np.float32)
+    # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\gram_01')
 
-    # # KAME模型
-    # glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
-    # node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    # tree_test = kame_knowledgematrix(test_set[2], node2vec_emb)
-    # x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
+    # KAME模型
+    # gram_emb = np.load(gramembFile).astype(np.float32)
+    # glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
+    # tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
+    # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
     # model = tf.keras.models.load_model('G:\\模型训练保存\\kame_01')
 
     # # 我们的模型NAKM
@@ -228,7 +230,7 @@ if __name__ == '__main__':
     # RNN、RNN+、Dipole、GRAM模型的预测
     preds = model.predict(x_test, batch_size=100)
 
-    # # KAME、NKAM模型的预测
+    # KAME、NKAM模型的预测
     # preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)

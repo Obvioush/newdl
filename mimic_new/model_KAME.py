@@ -190,7 +190,7 @@ if __name__ == '__main__':
     gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
     node2vecFile = './resource/embedding/node2vec_test.npy'
     node2vecPatientFile = './resource/embedding/node2vec_patient_test.npy'
-    gramembFile = './resource/embedding/gram_emb.npy'
+    gramembFile = './resource/embedding/gram_emb_final.npy'
 
     # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
     # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
@@ -255,17 +255,14 @@ if __name__ == '__main__':
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
-    # mask1 = keras.layers.Dense(gru_dimentions)(mask1)
     context_vector = KAMEAttention()([mask1, gru_out])
-    # knowledge_vector = tf.tile(tf.expand_dims(context_vector, 1), [1, x.shape[1], 1])
-    # s = keras.layers.concatenate([gru_out, knowledge_vector], axis=-1)
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\kame_02', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\kame_01', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

@@ -10,7 +10,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 512
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -132,17 +132,21 @@ class ScaledDotProductAttention(keras.layers.Layer):
         # 为该层创建一个可训练的权重
         # inputs.shape = (batch_size, time_steps, seq_len)
         self.kernel = self.add_weight(name='kernel',
-                                      shape=(3, input_shape[0][2], self.output_dim),
+                                      shape=(2, input_shape[0][2], self.output_dim),
                                       initializer='uniform',
                                       trainable=True)
+        self.W = self.add_weight(name='W',
+                                 shape=(input_shape[1][2], self.output_dim),
+                                 initializer='uniform',
+                                 trainable=True)
 
         super(ScaledDotProductAttention, self).build(input_shape)  # 一定要在最后调用它
 
     def call(self, inputs):
         Lt, rnn_ht = inputs
-        WQ = K.dot(rnn_ht, self.kernel[0])
-        WK = K.dot(Lt, self.kernel[1])
-        WV = K.dot(Lt, self.kernel[2])
+        WQ = K.dot(rnn_ht, self.W)
+        WK = K.dot(Lt, self.kernel[0])
+        WV = K.dot(Lt, self.kernel[1])
         # WQ.shape (None, 41, 128)
         # print("WQ.shape", WQ.shape)
         # 转置 K.permute_dimensions(WK, [0, 2, 1]).shape (None, 128, 41)
@@ -228,7 +232,7 @@ if __name__ == '__main__':
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\us_05', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_'+str(gru_dimentions), monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

@@ -9,7 +9,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 512
 
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
@@ -120,9 +120,9 @@ def process_label(labelSeqs):
 
 
 class KAMEAttention(keras.Model):
-    def __init__(self):
+    def __init__(self, units):
         super(KAMEAttention, self).__init__()
-        # self.W1 = keras.layers.Dense(units)
+        self.W1 = keras.layers.Dense(units)
         # self.W2 = keras.layers.Dense(units)
         # self.V = keras.layers.Dense(1)
 
@@ -134,7 +134,7 @@ class KAMEAttention(keras.Model):
 
         # ht.shape:(batch_size, length, size, units)=>(5250,41,1,128)
         ht = tf.expand_dims(rnn_ht, 2)
-
+        Lt = self.W1(Lt)
         # score.shape:(batch_size, length, size, 1)
         score = tf.multiply(ht, Lt)
 
@@ -255,14 +255,14 @@ if __name__ == '__main__':
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
-    context_vector = KAMEAttention()([mask1, gru_out])
+    context_vector = KAMEAttention(units=gru_dimentions)([mask1, gru_out])
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\kame_01', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\kame_'+str(gru_dimentions), monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 640
 embDimSize = 128
 attentionDimSize = 128
 
@@ -283,12 +283,12 @@ if __name__ == '__main__':
         # 添加一个Masking层，这个层的input_shape=(timesteps, features)
         keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
         keras.layers.Activation('tanh'),
-        keras.layers.GRU(128, return_sequences=True, dropout=0.5),
+        keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
         keras.layers.Dense(283, activation='softmax')
     ])
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\gram_01', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\gram_'+str(gru_dimentions), monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

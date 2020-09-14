@@ -8,7 +8,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 640
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -210,7 +210,7 @@ if __name__ == '__main__':
     model = keras.models.Model(inputs=gru_input, outputs=main_output)
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\Dipole_01', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\Dipole_'+str(gru_dimentions), monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

@@ -273,7 +273,7 @@ if __name__ == '__main__':
         embList.append(tempEmb)
 
     emb = tf.concat(embList, axis=0)
-    np.save('./resource/embedding/gram_emb_final', np.array(emb))
+    # np.save('./resource/embedding/gram_emb_final', np.array(emb))
 
     x = tf.matmul(x, tf.expand_dims(emb, 0))
     x_valid = tf.matmul(x_valid, tf.expand_dims(emb, 0))
@@ -286,24 +286,6 @@ if __name__ == '__main__':
         keras.layers.GRU(128, return_sequences=True, dropout=0.5),
         keras.layers.Dense(283, activation='softmax')
     ])
-
-    # gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
-    # mask = keras.layers.Masking(mask_value=0)(gru_input)
-    # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(mask)
-    #
-    # tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
-    # mask1 = keras.layers.Masking(mask_value=0)(tree_input)
-    # mask1 = keras.layers.Dense(gru_dimentions)(mask1)
-    # ka = KnowledgeAttention(units=128)
-    # context_vector = ka(mask1, gru_out)
-    # # knowledge_vector = tf.tile(tf.expand_dims(context_vector, 1), [1, x.shape[1], 1])
-    # # s = keras.layers.concatenate([gru_out, knowledge_vector], axis=-1)
-    # s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
-    #
-    # main_output = keras.layers.Dense(283, activation='softmax')(s)
-    # # main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
-    #
-    # model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
     checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\gram_01', monitor='val_accuracy', mode='auto',
@@ -320,16 +302,6 @@ if __name__ == '__main__':
 
     preds = model.predict(x_test, batch_size=100)
 
-    # def recallTop(y_true, y_pred, rank=[10, 20, 30]):
-    #     recall = list()
-    #     for i in range(len(y_pred)):
-    #         thisOne = list()
-    #         codes = y_true[i]
-    #         tops = y_pred[i]
-    #         for rk in rank:
-    #             thisOne.append(len(set(codes).intersection(set(tops[:rk])))*1.0/len(set(codes)))
-    #         recall.append(thisOne)
-    #     return (np.array(recall)).mean(axis=0).tolist()
 
     def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
         recall = list()

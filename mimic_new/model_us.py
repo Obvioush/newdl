@@ -222,15 +222,13 @@ if __name__ == '__main__':
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
-    mask1 = keras.layers.Dense(gru_dimentions)(mask1)
     context_vector, weights = ScaledDotProductAttention(output_dim=128)([mask1, gru_out])
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
 
-    # main_output = keras.layers.TimeDistributed(keras.layers.Dense(283, activation='softmax'))(s)
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\us_03', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\us_05', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

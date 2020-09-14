@@ -203,10 +203,10 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN_02')
 
     # RNN+模型
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_final')
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_final_01')
 
     # Dipole模型
-    model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_01')
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_01')
 
     # GRAM模型
     # gram_emb = np.load(gramembFile).astype(np.float32)
@@ -221,17 +221,17 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\kame_01')
 
     # # 我们的模型NAKM
-    # glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
-    # node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    # x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
-    # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\us_02')
+    glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
+    node2vec_emb = np.load(node2vecFile).astype(np.float32)
+    x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
+    tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
+    model = tf.keras.models.load_model('G:\\模型训练保存\\us_05')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
-    preds = model.predict(x_test, batch_size=100)
+    # preds = model.predict(x_test, batch_size=100)
 
     # KAME、NKAM模型的预测
-    # preds = model.predict([x_test, tree_test], batch_size=100)
+    preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)
     y_true = process_label(test_set[1])

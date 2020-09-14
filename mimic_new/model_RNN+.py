@@ -162,18 +162,18 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Activation('relu')(mask)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(mask)
     context_vector = LocationbasedAttention()(gru_out)
 
     ht = keras.layers.concatenate([context_vector, gru_out], axis=-1)
-    ht = keras.layers.Activation('tanh')(ht)
+    ht = keras.layers.Dense(128, activation='tanh')(ht)
+    ht = keras.layers.Dropout(rate=0.5)(ht)
     main_output = keras.layers.Dense(283, activation='softmax')(ht)
 
     model = keras.models.Model(inputs=gru_input, outputs=main_output)
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\RNN+_final_02', monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\RNN+_final_01', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

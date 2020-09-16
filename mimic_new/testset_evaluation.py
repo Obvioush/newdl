@@ -221,11 +221,12 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\kame_256')
 
     # 我们的模型NAKM
-    glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
+    # glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
+    gram_emb = np.load(gramembFile).astype(np.float32)
     node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
+    # x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
     tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel_384')
+    model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel_gramemb_02')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
     # preds = model.predict(x_test, batch_size=100)

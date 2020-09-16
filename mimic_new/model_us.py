@@ -10,7 +10,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 512
+gru_dimentions = 128
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -122,6 +122,26 @@ def process_label(labelSeqs):
     return newlabelSeq
 
 
+class MyEmbedding(keras.layers.Layer):
+    def __init__(self,embedding_matrix, **kwargs):
+        self.embedding_matrix = embedding_matrix
+        super(MyEmbedding, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        # assert isinstance(input_shape, list)
+        # Create a trainable weight variable for this layer.
+        self.kernel = self.add_weight(name='embedding_matrix',
+                                      shape=(4893, 128),
+                                      initializer=keras.initializers.constant(self.embedding_matrix),
+                                      trainable=True)
+        super(MyEmbedding, self).build(input_shape)  # Be sure to call this at the end
+
+    def call(self, inputs):
+        # assert isinstance(x, list)
+        emb = K.tanh(K.dot(inputs, self.kernel))
+        return emb
+
+
 class ScaledDotProductAttention(keras.layers.Layer):
     def __init__(self, output_dim, **kwargs):
         # inputs.shape = (batch_size, time_steps, seq_len)
@@ -184,6 +204,7 @@ if __name__ == '__main__':
     gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
     node2vecFile = './resource/embedding/node2vec_test.npy'
     node2vecPatientFile = './resource/embedding/node2vec_patient_test.npy'
+    gramembFile = './resource/embedding/gram_emb_final.npy'
     # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
     # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
     # types = pickle.load(open('./resource/build_trees.types', 'rb'))
@@ -193,6 +214,7 @@ if __name__ == '__main__':
     glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
     node2vec_patient_emb = np.load(node2vecPatientFile).astype(np.float32)
     node2vec_emb = np.load(node2vecFile).astype(np.float32)
+    gram_emb = np.load(gramembFile).astype(np.float32)
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x, y, tree, lengths = padMatrix(train_set[0], train_set[1], train_set[2])
@@ -200,9 +222,9 @@ if __name__ == '__main__':
     x_test, y_test, tree_test, test_lengths = padMatrix(test_set[0], test_set[1], test_set[2])
 
     # glove patient embedding
-    x = tf.matmul(x, tf.expand_dims(glove_patient_emb, 0))
-    x_valid = tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0))
-    x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
+    # x = tf.matmul(x, tf.expand_dims(glove_patient_emb, 0))
+    # x_valid = tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0))
+    # x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
 
     # node2vec patient embedding
     # x = tf.tanh(tf.matmul(x, tf.expand_dims(node2vec_patient_emb, 0)))
@@ -221,18 +243,22 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Activation('tanh')(mask)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
+    embeddinglayer = MyEmbedding(glove_patient_emb)
+    emb = embeddinglayer(mask)
+    # embedding = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(glove_patient_emb),
+    #                                 trainable=True,use_bias=False)(mask)
+    # v = keras.layers.Activation('tanh')(embedding)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
     context_vector, weights = ScaledDotProductAttention(output_dim=128)([mask1, gru_out])
-    s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
+    st = keras.layers.concatenate([gru_out, context_vector], axis=-1)
 
-    main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
+    main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_'+str(gru_dimentions), monitor='val_accuracy', mode='auto',
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_gloveemb', monitor='val_accuracy', mode='auto',
                                                     save_best_only='True')
 
     callback_lists = [checkpoint]

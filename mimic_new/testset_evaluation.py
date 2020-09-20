@@ -226,7 +226,7 @@ if __name__ == '__main__':
     node2vec_emb = np.load(node2vecFile).astype(np.float32)
     # x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
     tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel_gramemb_02')
+    model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel128_dropout\\rate05_100iters\\model_43')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
     # preds = model.predict(x_test, batch_size=100)

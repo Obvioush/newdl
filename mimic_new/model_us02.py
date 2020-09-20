@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import backend as K
+from tensorflow.keras.callbacks import Callback
 import _pickle as pickle
 import numpy as np
 import pandas as pd
@@ -8,7 +9,6 @@ import matplotlib.pyplot as plt
 import heapq
 import operator
 import os
-
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
@@ -133,7 +133,7 @@ class MyEmbedding(keras.layers.Layer):
         # assert isinstance(input_shape, list)
         # Create a trainable weight variable for this layer.
         self.kernel = self.add_weight(name='embedding_matrix',
-                                      shape=(4893, 128),
+                                      shape=(self.embedding_matrix.shape[0], self.embedding_matrix.shape[1]),
                                       initializer=keras.initializers.constant(self.embedding_matrix),
                                       trainable=True)
         super(MyEmbedding, self).build(input_shape)  # Be sure to call this at the end
@@ -197,6 +197,63 @@ class ScaledDotProductAttention(keras.layers.Layer):
         return config
 
 
+def visit_level_precision(y_true, y_pred, rank=[5]):
+    recall = list()
+    for i in range(len(y_true)):
+        for j in range(len(y_true[i])):
+            thisOne = list()
+            codes = y_true[i][j]
+            tops = y_pred[i][j]
+            for rk in rank:
+                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
+            recall.append(thisOne)
+    return (np.array(recall)).mean(axis=0).tolist()
+
+
+def code_level_accuracy(y_true, y_pred, rank=[5,30]):
+    recall = list()
+    for i in range(len(y_true)):
+        for j in range(len(y_true[i])):
+            thisOne = list()
+            codes = y_true[i][j]
+            tops = y_pred[i][j]
+            for rk in rank:
+                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
+            recall.append(thisOne)
+    return (np.array(recall)).mean(axis=0).tolist()
+
+
+# 按从大到小取预测值中前30个ccs分组号
+def convert2preds(preds):
+    ccs_preds = []
+    for i in range(len(preds)):
+        temp = []
+        for j in range(len(preds[i])):
+            temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
+        ccs_preds.append(temp)
+    return ccs_preds
+
+
+class metricsHistory(Callback):
+    def __init__(self):
+        super().__init__()
+        self.Recall_5 = []
+        self.Precision_5 = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
+            model.predict([x_test, net_test])))[0]
+        recall5,recall30 = code_level_accuracy(process_label(test_set[1]),convert2preds(
+            model.predict([x_test, net_test])))
+        self.Precision_5.append(precision5)
+        self.Recall_5.append(recall5)
+        print(' - Precision@5:',precision5,' - Recall@5:',recall5,' - Recall@30:',recall30)
+
+    def on_train_end(self, logs={}):
+        print('Recall@5为:',self.Recall_5,'\n')
+        print('Precision@5为:',self.Precision_5)
+
+
 if __name__ == '__main__':
     seqFile = './resource/process_data/process.dataseqs'
     labelFile = './resource/process_data/process.labelseqs'
@@ -219,9 +276,9 @@ if __name__ == '__main__':
     gram_emb = np.load(gramembFile).astype(np.float32)
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
-    x, y, tree, lengths = padMatrix(train_set[0], train_set[1], train_set[2])
-    x_valid, y_valid, tree_valid, valid_lengths = padMatrix(valid_set[0], valid_set[1], valid_set[2])
-    x_test, y_test, tree_test, test_lengths = padMatrix(test_set[0], test_set[1], test_set[2])
+    x, y, net, lengths = padMatrix(train_set[0], train_set[1], train_set[2])
+    x_valid, y_valid, net_valid, valid_lengths = padMatrix(valid_set[0], valid_set[1], valid_set[2])
+    x_test, y_test, net_test, test_lengths = padMatrix(test_set[0], test_set[1], test_set[2])
 
     # glove patient embedding
     # x = tf.matmul(x, tf.expand_dims(glove_patient_emb, 0))
@@ -239,108 +296,75 @@ if __name__ == '__main__':
     # tree_test = tf.matmul(tree_test, tf.expand_dims(glove_knowledge_emb, 0))
 
     # node2vec knowledge embedding
-    tree = tf.matmul(tree, tf.expand_dims(node2vec_emb, 0))
-    tree_valid = tf.matmul(tree_valid, tf.expand_dims(node2vec_emb, 0))
-    tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
+    net = tf.matmul(net, tf.expand_dims(node2vec_emb, 0))
+    net_valid = tf.matmul(net_valid, tf.expand_dims(node2vec_emb, 0))
+    net_test = tf.matmul(net_test, tf.expand_dims(node2vec_emb, 0))
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    embeddinglayer = MyEmbedding(glove_patient_emb)
-    emb = embeddinglayer(mask)
+    embLayer = MyEmbedding(glove_patient_emb)
+    emb = embLayer(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
 
-    tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
-    mask1 = keras.layers.Masking(mask_value=0)(tree_input)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([mask1, gru_out])
+    net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
+    net_mask = keras.layers.Masking(mask_value=0)(net_input)
+    # net_embLayer = MyEmbedding(node2vec_emb)
+    # net_emb = net_embLayer(net_mask)
+    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, gru_out])
     st = keras.layers.concatenate([gru_out, context_vector], axis=-1)
 
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
 
-    model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
+    model = keras.models.Model(inputs=[gru_input, net_input], outputs=main_output)
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_dropout\\rate0.5',
-                                                    monitor='val_accuracy', mode='auto', save_best_only=True)
-    batch_print_callback = tf.keras.callbacks.LambdaCallback(
-        on_epoch_end=lambda batch, logs: print(roc_auc_score(Y, model.predict(train_X))))
-    callback_lists = [checkpoint]
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel128_dropout\\rate05_100iters\\model_{epoch:02d}', save_freq='epoch')
+
+
+    # batch_print_callback = tf.keras.callbacks.LambdaCallback(
+    #     on_epoch_end=lambda batch, logs: print('Precision@5:',visit_level_precision(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0],
+    #                                             'Recall@5:',code_level_accuracy(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0]))
+    callback_history = metricsHistory()
+    callback_lists = [callback_history, checkpoint]
     model.summary()
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics='accuracy')
+    model.compile(optimizer='adam', loss='binary_crossentropy')
 
-    history = model.fit([x, tree], y,
+    history = model.fit([x, net], y,
                         epochs=100,
                         batch_size=100,
-                        validation_data=([x_valid, tree_valid], y_valid),
+                        validation_data=([x_valid, net_valid], y_valid),
                         callbacks=callback_lists)
 
-    def plot_learning_curves(history, label, epochs, min_value, max_value):
-        data = {}
-        data[label] = history.history[label]
-        data['val_' + label] = history.history['val_' + label]
-        pd.DataFrame(data).plot(figsize=(8, 5))
-        plt.grid(True)
-        plt.axis([0, epochs, min_value, max_value])
-        plt.ylabel('loss')
-        # plt.xlabel('迭代次数')
-        plt.title('Dropout rate=0.5')
-        plt.show()
+    # def plot_learning_curves(history, label, epochs, min_value, max_value):
+    #     data = {}
+    #     data[label] = history.history[label]
+    #     data['val_' + label] = history.history['val_' + label]
+    #     pd.DataFrame(data).plot(figsize=(8, 5))
+    #     plt.grid(True)
+    #     plt.axis([0, epochs, min_value, max_value])
+    #     plt.ylabel('loss')
+    #     # plt.xlabel('迭代次数')
+    #     plt.title('Dropout rate=0.5')
+    #     plt.show()
 
+    # plot_learning_curves(history, 'loss', 100, 0.009, 0.013)
 
-    plot_learning_curves(history, 'loss', 100, 0.009, 0.013)
-
-    preds = model.predict([x_test, tree_test], batch_size=100)
-
-
-    def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
-        recall = list()
-        for i in range(len(y_true)):
-            for j in range(len(y_true[i])):
-                thisOne = list()
-                codes = y_true[i][j]
-                tops = y_pred[i][j]
-                for rk in rank:
-                    thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
-                recall.append(thisOne)
-        return (np.array(recall)).mean(axis=0).tolist()
-
-
-    def codel_level_accuracy(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
-        recall = list()
-        for i in range(len(y_true)):
-            for j in range(len(y_true[i])):
-                thisOne = list()
-                codes = y_true[i][j]
-                tops = y_pred[i][j]
-                for rk in rank:
-                    thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
-                recall.append(thisOne)
-        return (np.array(recall)).mean(axis=0).tolist()
-
-
-    # 按从大到小取预测值中前30个ccs分组号
-    def convert2preds(preds):
-        ccs_preds = []
-        for i in range(len(preds)):
-            temp = []
-            for j in range(len(preds[i])):
-                temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
-            ccs_preds.append(temp)
-        return ccs_preds
-
-    y_pred = convert2preds(preds)
-    y_true = process_label(test_set[1])
-    metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
-    metrics_codel_level_accuracy = codel_level_accuracy(y_true, y_pred)
-
-    print("Top-5 visit_level_precision为：", metrics_visit_level_precision[0])
-    print("Top-10 visit_level_precision为：", metrics_visit_level_precision[1])
-    print("Top-15 visit_level_precision为：", metrics_visit_level_precision[2])
-    print("Top-20 visit_level_precision为：", metrics_visit_level_precision[3])
-    print("Top-25 visit_level_precision为：", metrics_visit_level_precision[4])
-    print("Top-30 visit_level_precision为：", metrics_visit_level_precision[5])
-    print("---------------------------------------------------------")
-    print("Top-5 codel_level_accuracy为：", metrics_codel_level_accuracy[0])
-    print("Top-10 codel_level_accuracy为：", metrics_codel_level_accuracy[1])
-    print("Top-15 codel_level_accuracy为：", metrics_codel_level_accuracy[2])
-    print("Top-20 codel_level_accuracy为：", metrics_codel_level_accuracy[3])
-    print("Top-25 codel_level_accuracy为：", metrics_codel_level_accuracy[4])
-    print("Top-30 codel_level_accuracy为：", metrics_codel_level_accuracy[5])
+    # preds = model.predict([x_test, tree_test], batch_size=100)
+    #
+    # y_pred = convert2preds(preds)
+    # y_true = process_label(test_set[1])
+    # metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
+    # metrics_codel_level_accuracy = code_level_accuracy(y_true, y_pred)
+    #
+    # print("Top-5 visit_level_precision为：", metrics_visit_level_precision[0])
+    # print("Top-10 visit_level_precision为：", metrics_visit_level_precision[1])
+    # print("Top-15 visit_level_precision为：", metrics_visit_level_precision[2])
+    # print("Top-20 visit_level_precision为：", metrics_visit_level_precision[3])
+    # print("Top-25 visit_level_precision为：", metrics_visit_level_precision[4])
+    # print("Top-30 visit_level_precision为：", metrics_visit_level_precision[5])
+    # print("---------------------------------------------------------")
+    # print("Top-5 codel_level_accuracy为：", metrics_codel_level_accuracy[0])
+    # print("Top-10 codel_level_accuracy为：", metrics_codel_level_accuracy[1])
+    # print("Top-15 codel_level_accuracy为：", metrics_codel_level_accuracy[2])
+    # print("Top-20 codel_level_accuracy为：", metrics_codel_level_accuracy[3])
+    # print("Top-25 codel_level_accuracy为：", metrics_codel_level_accuracy[4])
+    # print("Top-30 codel_level_accuracy为：", metrics_codel_level_accuracy[5])

@@ -12,7 +12,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 320
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -317,7 +317,7 @@ if __name__ == '__main__':
 
     model = keras.models.Model(inputs=[gru_input, net_input], outputs=main_output)
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel128_dropout\\rate05_100iters\\model_{epoch:02d}', save_freq='epoch')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel320_dropout\\rate05\\model_{epoch:02d}', save_freq='epoch')
 
 
     # batch_print_callback = tf.keras.callbacks.LambdaCallback(
@@ -329,7 +329,7 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit([x, net], y,
-                        epochs=100,
+                        epochs=50,
                         batch_size=100,
                         validation_data=([x_valid, net_valid], y_valid),
                         callbacks=callback_lists)

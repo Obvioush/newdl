@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras as keras
+from tensorflow.keras.callbacks import Callback
 import _pickle as pickle
 import numpy as np
 import heapq
@@ -10,9 +11,9 @@ from collections import OrderedDict
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 640
-embDimSize = 128
-attentionDimSize = 128
+gru_dimentions = 320
+# embDimSize = 128
+# attentionDimSize = 128
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -194,6 +195,72 @@ def init_params(emb):
     return params
 
 
+def visit_level_precision(y_true, y_pred, rank=[5]):
+    recall = list()
+    for i in range(len(y_true)):
+        for j in range(len(y_true[i])):
+            thisOne = list()
+            codes = y_true[i][j]
+            tops = y_pred[i][j]
+            for rk in rank:
+                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
+            recall.append(thisOne)
+    return (np.array(recall)).mean(axis=0).tolist()
+
+
+def code_level_accuracy(y_true, y_pred, rank=[5,30]):
+    recall = list()
+    for i in range(len(y_true)):
+        for j in range(len(y_true[i])):
+            thisOne = list()
+            codes = y_true[i][j]
+            tops = y_pred[i][j]
+            for rk in rank:
+                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
+            recall.append(thisOne)
+    return (np.array(recall)).mean(axis=0).tolist()
+
+
+# 按从大到小取预测值中前30个ccs分组号
+def convert2preds(preds):
+    ccs_preds = []
+    for i in range(len(preds)):
+        temp = []
+        for j in range(len(preds[i])):
+            temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
+        ccs_preds.append(temp)
+    return ccs_preds
+
+
+class metricsHistory(Callback):
+    def __init__(self):
+        super().__init__()
+        self.Recall_5 = []
+        self.Precision_5 = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
+            model.predict(x_test)))[0]
+        recall5,recall30 = code_level_accuracy(process_label(test_set[1]),convert2preds(
+            model.predict(x_test)))
+        self.Precision_5.append(precision5)
+        self.Recall_5.append(recall5)
+        print(' - Precision@5:',precision5,' - Recall@5:',recall5,' - Recall@30:',recall30)
+
+    def on_train_end(self, logs={}):
+        print('Recall@5为:',self.Recall_5,'\n')
+        print('Precision@5为:',self.Precision_5)
+        fileName = 'G:\\模型训练保存\\GRAM_'+str(gru_dimentions)+'_dropout\\rate05\\model_metrics.txt'
+        print2file('Recall@5:'+str(self.Recall_5),fileName)
+        print2file('Precision@5:'+str(self.Precision_5),fileName)
+
+
+def print2file(buf, outFile):
+    outfd = open(outFile, 'a')
+    outfd.write(buf + '\n')
+    outfd.close()
+
+
 def init_tparams(params):
     tparams = OrderedDict()
     for key, value in params.items():
@@ -288,72 +355,73 @@ if __name__ == '__main__':
     ])
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\gram_'+str(gru_dimentions), monitor='val_accuracy', mode='auto',
-                                                    save_best_only='True')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(
+        filepath='G:\\模型训练保存\\GRAM_' + str(gru_dimentions) + '_dropout\\rate05\\model_{epoch:02d}', save_freq='epoch')
+    callback_history = metricsHistory()
+    callback_lists = [callback_history, checkpoint]
 
-    callback_lists = [checkpoint]
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics='accuracy')
+    model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit(x, y,
-                        epochs=100,
+                        epochs=50,
                         batch_size=100,
                         validation_data=(x_valid, y_valid),
                         callbacks=callback_lists)
 
-    preds = model.predict(x_test, batch_size=100)
-
-
-    def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
-        recall = list()
-        for i in range(len(y_true)):
-            for j in range(len(y_true[i])):
-                thisOne = list()
-                codes = y_true[i][j]
-                tops = y_pred[i][j]
-                for rk in rank:
-                    thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
-                recall.append(thisOne)
-        return (np.array(recall)).mean(axis=0).tolist()
-
-
-    def codel_level_accuracy(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
-        recall = list()
-        for i in range(len(y_true)):
-            for j in range(len(y_true[i])):
-                thisOne = list()
-                codes = y_true[i][j]
-                tops = y_pred[i][j]
-                for rk in rank:
-                    thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
-                recall.append(thisOne)
-        return (np.array(recall)).mean(axis=0).tolist()
-
-
-    # 按从大到小取预测值中前30个ccs分组号
-    def convert2preds(preds):
-        ccs_preds = []
-        for i in range(len(preds)):
-            temp = []
-            for j in range(len(preds[i])):
-                temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
-            ccs_preds.append(temp)
-        return ccs_preds
-
-    y_pred = convert2preds(preds)
-    y_true = process_label(test_set[1])
-    metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
-    metrics_codel_level_accuracy = codel_level_accuracy(y_true, y_pred)
-
-    print("Top-5 visit_level_precision为：", metrics_visit_level_precision[0])
-    print("Top-10 visit_level_precision为：", metrics_visit_level_precision[1])
-    print("Top-15 visit_level_precision为：", metrics_visit_level_precision[2])
-    print("Top-20 visit_level_precision为：", metrics_visit_level_precision[3])
-    print("Top-25 visit_level_precision为：", metrics_visit_level_precision[4])
-    print("Top-30 visit_level_precision为：", metrics_visit_level_precision[5])
-    print("---------------------------------------------------------")
-    print("Top-5 codel_level_accuracy为：", metrics_codel_level_accuracy[0])
-    print("Top-10 codel_level_accuracy为：", metrics_codel_level_accuracy[1])
-    print("Top-15 codel_level_accuracy为：", metrics_codel_level_accuracy[2])
-    print("Top-20 codel_level_accuracy为：", metrics_codel_level_accuracy[3])
-    print("Top-25 codel_level_accuracy为：", metrics_codel_level_accuracy[4])
-    print("Top-30 codel_level_accuracy为：", metrics_codel_level_accuracy[5])
+    # preds = model.predict(x_test, batch_size=100)
+    #
+    #
+    # def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
+    #     recall = list()
+    #     for i in range(len(y_true)):
+    #         for j in range(len(y_true[i])):
+    #             thisOne = list()
+    #             codes = y_true[i][j]
+    #             tops = y_pred[i][j]
+    #             for rk in rank:
+    #                 thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
+    #             recall.append(thisOne)
+    #     return (np.array(recall)).mean(axis=0).tolist()
+    #
+    #
+    # def codel_level_accuracy(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
+    #     recall = list()
+    #     for i in range(len(y_true)):
+    #         for j in range(len(y_true[i])):
+    #             thisOne = list()
+    #             codes = y_true[i][j]
+    #             tops = y_pred[i][j]
+    #             for rk in rank:
+    #                 thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
+    #             recall.append(thisOne)
+    #     return (np.array(recall)).mean(axis=0).tolist()
+    #
+    #
+    # # 按从大到小取预测值中前30个ccs分组号
+    # def convert2preds(preds):
+    #     ccs_preds = []
+    #     for i in range(len(preds)):
+    #         temp = []
+    #         for j in range(len(preds[i])):
+    #             temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
+    #         ccs_preds.append(temp)
+    #     return ccs_preds
+    #
+    # y_pred = convert2preds(preds)
+    # y_true = process_label(test_set[1])
+    # metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
+    # metrics_codel_level_accuracy = codel_level_accuracy(y_true, y_pred)
+    #
+    # print("Top-5 visit_level_precision为：", metrics_visit_level_precision[0])
+    # print("Top-10 visit_level_precision为：", metrics_visit_level_precision[1])
+    # print("Top-15 visit_level_precision为：", metrics_visit_level_precision[2])
+    # print("Top-20 visit_level_precision为：", metrics_visit_level_precision[3])
+    # print("Top-25 visit_level_precision为：", metrics_visit_level_precision[4])
+    # print("Top-30 visit_level_precision为：", metrics_visit_level_precision[5])
+    # print("---------------------------------------------------------")
+    # print("Top-5 codel_level_accuracy为：", metrics_codel_level_accuracy[0])
+    # print("Top-10 codel_level_accuracy为：", metrics_codel_level_accuracy[1])
+    # print("Top-15 codel_level_accuracy为：", metrics_codel_level_accuracy[2])
+    # print("Top-20 codel_level_accuracy为：", metrics_codel_level_accuracy[3])
+    # print("Top-25 codel_level_accuracy为：", metrics_codel_level_accuracy[4])
+    # print("Top-30 codel_level_accuracy为：", metrics_codel_level_accuracy[5])

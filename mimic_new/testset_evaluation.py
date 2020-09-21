@@ -206,12 +206,12 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+')
 
     # Dipole模型
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_640')
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_128_dropout\\rate05\\model_31_best')
 
     # GRAM模型
-    # gram_emb = np.load(gramembFile).astype(np.float32)
-    # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\gram_640')
+    gram_emb = np.load(gramembFile).astype(np.float32)
+    x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
+    model = tf.keras.models.load_model('G:\\模型训练保存\\GRAM_128_dropout\\rate05\\model_29_best')
 
     # KAME模型
     # gram_emb = np.load(gramembFile).astype(np.float32)
@@ -220,19 +220,17 @@ if __name__ == '__main__':
     # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
     # model = tf.keras.models.load_model('G:\\模型训练保存\\kame_256')
 
-    # 我们的模型NAKM
-    # glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
-    gram_emb = np.load(gramembFile).astype(np.float32)
-    node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    # x_test = tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0))
-    tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel128_dropout\\rate05_100iters\\model_43')
+    # 我们的模型NKAM
+    # gram_emb = np.load(gramembFile).astype(np.float32)
+    # node2vec_emb = np.load(node2vecFile).astype(np.float32)
+    # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel128_dropout\\rate05\\model_43')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
-    # preds = model.predict(x_test, batch_size=100)
+    preds = model.predict(x_test, batch_size=100)
 
     # KAME、NKAM模型的预测
-    preds = model.predict([x_test, tree_test], batch_size=100)
+    # preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)
     y_true = process_label(test_set[1])

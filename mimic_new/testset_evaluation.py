@@ -203,7 +203,7 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN_128_dropout\\rate05\\model_18')
 
     # RNN+模型
-    model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_128_dropout\\rate05\\model_18')
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_128_dropout\\rate05\\model_18')
 
     # Dipole模型
     # model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_128_dropout\\rate05\\model_31_best')
@@ -214,11 +214,11 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\GRAM_128_dropout\\rate05\\model_29_best')
 
     # KAME模型
-    # gram_emb = np.load(gramembFile).astype(np.float32)
-    # glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
-    # tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
-    # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\kame_256')
+    gram_emb = np.load(gramembFile).astype(np.float32)
+    glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
+    tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
+    x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
+    model = tf.keras.models.load_model('G:\\模型训练保存\\KAME_128_dropout\\rate05\\model_48')
 
     # 我们的模型NKAM
     # gram_emb = np.load(gramembFile).astype(np.float32)
@@ -227,10 +227,10 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\模型训练保存\\ourmodel128_dropout\\rate05\\model_43')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
-    preds = model.predict(x_test, batch_size=100)
+    # preds = model.predict(x_test, batch_size=100)
 
     # KAME、NKAM模型的预测
-    # preds = model.predict([x_test, tree_test], batch_size=100)
+    preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)
     y_true = process_label(test_set[1])

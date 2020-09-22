@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras as keras
+from tensorflow.keras.callbacks import Callback
 import _pickle as pickle
 import numpy as np
 import heapq
@@ -122,6 +123,78 @@ def process_label(labelSeqs):
     return newlabelSeq
 
 
+def visit_level_precision(y_true, y_pred, rank=[5]):
+    recall = list()
+    for i in range(len(y_true)):
+        for j in range(len(y_true[i])):
+            thisOne = list()
+            codes = y_true[i][j]
+            tops = y_pred[i][j]
+            for rk in rank:
+                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
+            recall.append(thisOne)
+    return (np.array(recall)).mean(axis=0).tolist()
+
+
+def code_level_accuracy(y_true, y_pred, rank=[5]):
+    recall = list()
+    for i in range(len(y_true)):
+        for j in range(len(y_true[i])):
+            thisOne = list()
+            codes = y_true[i][j]
+            tops = y_pred[i][j]
+            for rk in rank:
+                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
+            recall.append(thisOne)
+    return (np.array(recall)).mean(axis=0).tolist()
+
+
+# 按从大到小取预测值中前30个ccs分组号
+def convert2preds(preds):
+    ccs_preds = []
+    for i in range(len(preds)):
+        temp = []
+        for j in range(len(preds[i])):
+            temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
+        ccs_preds.append(temp)
+    return ccs_preds
+
+
+class metricsHistory(Callback):
+    def __init__(self):
+        super().__init__()
+        self.Recall_5 = []
+        self.Precision_5 = []
+        self.path = 'G:\\模型训练保存\\RNN_' + str(gru_dimentions) + '_dropout\\rate05\\'
+        self.fileName = 'model_metrics.txt'
+
+    def on_epoch_end(self, epoch, logs={}):
+        precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
+            model.predict(x_test)))[0]
+        recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
+            model.predict(x_test)))[0]
+        self.Precision_5.append(precision5)
+        self.Recall_5.append(recall5)
+        metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
+        print2file(metricsInfo, self.path, self.fileName)
+        print(metricsInfo)
+
+    def on_train_end(self, logs={}):
+        print('Recall@5为:',self.Recall_5,'\n')
+        print('Precision@5为:',self.Precision_5)
+        print2file('Recall@5:'+str(self.Recall_5), self.path, self.fileName)
+        print2file('Precision@5:'+str(self.Precision_5), self.path, self.fileName)
+
+
+def print2file(buf, dirs, fileName):
+    if not os.path.exists(dirs):
+        os.makedirs(dirs)
+    outFile = dirs + fileName
+    outfd = open(outFile, 'a')
+    outfd.write(buf + '\n')
+    outfd.close()
+
+
 if __name__ == '__main__':
     seqFile = './resource/process_data/process.dataseqs'
     labelFile = './resource/process_data/process.labelseqs'
@@ -140,14 +213,14 @@ if __name__ == '__main__':
     ])
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\RNN_02', monitor='val_accuracy', mode='auto',
-                                                    save_best_only='True')
-
-    callback_lists = [checkpoint]
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics='accuracy')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(
+        filepath='G:\\模型训练保存\\RNN_' + str(gru_dimentions) + '_dropout\\rate05\\model_{epoch:02d}', save_freq='epoch')
+    callback_history = metricsHistory()
+    callback_lists = [callback_history, checkpoint]
+    model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit(x, y,
-                        epochs=100,
+                        epochs=50,
                         batch_size=100,
                         validation_data=(x_valid, y_valid),
                         callbacks=callback_lists)

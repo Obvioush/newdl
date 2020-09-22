@@ -200,18 +200,18 @@ if __name__ == '__main__':
     x_test, y_test, tree_test, test_lengths = padMatrix(test_set[0], test_set[1], test_set[2])
 
     # RNN模型
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN')
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN_128_dropout\\rate05\\model_18')
 
     # RNN+模型
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+')
+    model = tf.keras.models.load_model('G:\\模型训练保存\\RNN+_128_dropout\\rate05\\model_18')
 
     # Dipole模型
     # model = tf.keras.models.load_model('G:\\模型训练保存\\Dipole_128_dropout\\rate05\\model_31_best')
 
     # GRAM模型
-    gram_emb = np.load(gramembFile).astype(np.float32)
-    x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
-    model = tf.keras.models.load_model('G:\\模型训练保存\\GRAM_128_dropout\\rate05\\model_29_best')
+    # gram_emb = np.load(gramembFile).astype(np.float32)
+    # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
+    # model = tf.keras.models.load_model('G:\\模型训练保存\\GRAM_128_dropout\\rate05\\model_29_best')
 
     # KAME模型
     # gram_emb = np.load(gramembFile).astype(np.float32)

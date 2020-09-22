@@ -8,8 +8,9 @@ def plot_learning_curves(history, label, epochs, min_value, max_value):
         data[label + '0.2'] = history[label + '0.2']
         data[label + '0.5'] = history[label + '0.5']
         data[label + '0.8'] = history[label + '0.8']
+        plt.rcParams["figure.dpi"] = 140
         pd.DataFrame(data).plot(figsize=(8, 5))
-        plt.rcParams["figure.dpi"] = 500
+
         plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
         plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
         plt.grid(True)

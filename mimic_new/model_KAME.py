@@ -10,7 +10,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 64
+gru_dimentions = 320
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -194,7 +194,7 @@ def visit_level_precision(y_true, y_pred, rank=[5]):
     return (np.array(recall)).mean(axis=0).tolist()
 
 
-def code_level_accuracy(y_true, y_pred, rank=[5,30]):
+def code_level_accuracy(y_true, y_pred, rank=[5]):
     recall = list()
     for i in range(len(y_true)):
         for j in range(len(y_true[i])):
@@ -223,25 +223,31 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
+        self.path = 'G:\\模型训练保存\\KAME_' + str(gru_dimentions) + '_dropout\\rate05\\'
+        self.fileName = 'model_metrics.txt'
 
     def on_epoch_end(self, epoch, logs={}):
         precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
             model.predict([x_test, tree_test])))[0]
-        recall5,recall30 = code_level_accuracy(process_label(test_set[1]),convert2preds(
-            model.predict([x_test, tree_test])))
+        recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
+            model.predict([x_test, tree_test])))[0]
         self.Precision_5.append(precision5)
         self.Recall_5.append(recall5)
-        print(' - Precision@5:',precision5,' - Recall@5:',recall5,' - Recall@30:',recall30)
+        metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
+        print2file(metricsInfo, self.path, self.fileName)
+        print(metricsInfo)
 
     def on_train_end(self, logs={}):
         print('Recall@5为:',self.Recall_5,'\n')
         print('Precision@5为:',self.Precision_5)
-        fileName = 'G:\\模型训练保存\\KAME_'+str(gru_dimentions)+'_dropout\\rate05\\model_metrics.txt'
-        print2file('Recall@5:'+str(self.Recall_5),fileName)
-        print2file('Precision@5:'+str(self.Precision_5),fileName)
+        print2file('Recall@5:'+str(self.Recall_5), self.path, self.fileName)
+        print2file('Precision@5:'+str(self.Precision_5), self.path, self.fileName)
 
 
-def print2file(buf, outFile):
+def print2file(buf, dirs, fileName):
+    if not os.path.exists(dirs):
+        os.makedirs(dirs)
+    outFile = dirs + fileName
     outfd = open(outFile, 'a')
     outfd.write(buf + '\n')
     outfd.close()

@@ -7,7 +7,7 @@ if __name__ == '__main__':
     data['Dipole'] = [0.2792,0.2813,0.2791,0.2813,0.2820]
     data['GRAM'] = [0.2863,0.2928,0.2930,0.2942,0.2921]
     data['KAME'] = [0.2945,0.2975,0.2970,0.2966,0.2943]
-    data['NKAM'] = [0.3229,0.3282,0.3276,0.2949,0.2963]
+    data['NKAM'] = [0.3229,0.3282,0.3276,0.3002,0.2963]
 
     plt.rcParams["figure.dpi"] = 140
     plt.style.use('ggplot')
@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     plt.xlim(56,328)
     plt.ylabel('Recall@5')
-    plt.xlabel('迭代次数')
+    plt.xlabel('GRU中不同维度的隐状态大小')
     plt.title('MIMIC-III数据集')
     plt.legend()
     plt.show()

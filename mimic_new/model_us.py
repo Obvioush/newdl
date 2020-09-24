@@ -239,7 +239,7 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        self.path = 'G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05\\'
+        self.path = 'G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\'
         self.fileName = 'model_metrics.txt'
 
     def on_epoch_end(self, epoch, logs={}):
@@ -332,7 +332,7 @@ if __name__ == '__main__':
 
     model = keras.models.Model(inputs=[gru_input, net_input], outputs=main_output)
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05\\model_{epoch:02d}', save_freq='epoch')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
 
 
     # batch_print_callback = tf.keras.callbacks.LambdaCallback(

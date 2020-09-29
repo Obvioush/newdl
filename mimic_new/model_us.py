@@ -12,7 +12,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 256
+gru_dimentions = 128
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -197,6 +197,170 @@ class ScaledDotProductAttention(keras.layers.Layer):
         return config
 
 
+class ScaledDotProductAttention(keras.layers.Layer):
+
+    def __init__(self, masking=True, future=False, dropout_rate=0., **kwargs):
+        self._masking = masking
+        self._future = future
+        self._dropout_rate = dropout_rate
+        self._masking_num = -2 ** 32 + 1
+        super(ScaledDotProductAttention, self).__init__(**kwargs)
+
+    def mask(self, inputs, masks):
+        masks = K.cast(masks, 'float32')
+        masks = K.tile(masks, [K.shape(inputs)[0] // K.shape(masks)[0], 1])
+        masks = K.expand_dims(masks, 1)
+        outputs = inputs + masks * self._masking_num
+        return outputs
+
+    def future_mask(self, inputs):
+        diag_vals = tf.ones_like(inputs[0, :, :])
+        tril = tf.linalg.LinearOperatorLowerTriangular(diag_vals).to_dense()
+        future_masks = tf.tile(tf.expand_dims(tril, 0), [tf.shape(inputs)[0], 1, 1])
+        paddings = tf.ones_like(future_masks) * self._masking_num
+        outputs = tf.where(tf.equal(future_masks, 0), paddings, inputs)
+        return outputs
+
+    def call(self, inputs):
+        if self._masking:
+            assert len(inputs) == 4, "inputs should be set [queries, keys, values, masks]."
+            queries, keys, values, masks = inputs
+        else:
+            assert len(inputs) == 3, "inputs should be set [queries, keys, values]."
+            queries, keys, values = inputs
+
+        if K.dtype(queries) != 'float32':  queries = K.cast(queries, 'float32')
+        if K.dtype(keys) != 'float32':  keys = K.cast(keys, 'float32')
+        if K.dtype(values) != 'float32':  values = K.cast(values, 'float32')
+
+        matmul = K.batch_dot(queries, tf.transpose(keys, [0, 2, 1]))  # MatMul
+        scaled_matmul = matmul / int(queries.shape[-1]) ** 0.5  # Scale
+        if self._masking:
+            scaled_matmul = self.mask(scaled_matmul, masks)  # Mask(opt.)
+
+        if self._future:
+            scaled_matmul = self.future_mask(scaled_matmul)
+
+        softmax_out = K.softmax(scaled_matmul)  # SoftMax
+        # Dropout
+        out = K.dropout(softmax_out, self._dropout_rate)
+
+        outputs = K.batch_dot(out, values)
+
+        return outputs
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class MultiHeadAttention(keras.layers.Layer):
+
+    def __init__(self, n_heads, head_dim, dropout_rate=.1, masking=False, future=False, trainable=True, **kwargs):
+        self._n_heads = n_heads
+        self._head_dim = head_dim
+        self._dropout_rate = dropout_rate
+        self._masking = masking
+        self._future = future
+        self._trainable = trainable
+        super(MultiHeadAttention, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self._weights_queries = self.add_weight(
+            shape=(input_shape[0][-1], self._n_heads * self._head_dim),
+            initializer='glorot_uniform',
+            trainable=self._trainable,
+            name='weights_queries')
+        self._weights_keys = self.add_weight(
+            shape=(input_shape[1][-1], self._n_heads * self._head_dim),
+            initializer='glorot_uniform',
+            trainable=self._trainable,
+            name='weights_keys')
+        self._weights_values = self.add_weight(
+            shape=(input_shape[2][-1], self._n_heads * self._head_dim),
+            initializer='glorot_uniform',
+            trainable=self._trainable,
+            name='weights_values')
+        super(MultiHeadAttention, self).build(input_shape)
+
+    def call(self, inputs):
+        if self._masking:
+            assert len(inputs) == 4, "inputs should be set [queries, keys, values, masks]."
+            queries, keys, values, masks = inputs
+        else:
+            assert len(inputs) == 3, "inputs should be set [queries, keys, values]."
+            queries, keys, values = inputs
+
+        queries_linear = K.dot(queries, self._weights_queries)
+        keys_linear = K.dot(keys, self._weights_keys)
+        values_linear = K.dot(values, self._weights_values)
+
+        queries_multi_heads = tf.concat(tf.split(queries_linear, self._n_heads, axis=2), axis=0)
+        keys_multi_heads = tf.concat(tf.split(keys_linear, self._n_heads, axis=2), axis=0)
+        values_multi_heads = tf.concat(tf.split(values_linear, self._n_heads, axis=2), axis=0)
+
+        if self._masking:
+            att_inputs = [queries_multi_heads, keys_multi_heads, values_multi_heads, masks]
+        else:
+            att_inputs = [queries_multi_heads, keys_multi_heads, values_multi_heads]
+
+        attention = ScaledDotProductAttention(
+            masking=False, future=self._future, dropout_rate=self._dropout_rate)
+        att_out = attention(att_inputs)
+
+        outputs = tf.concat(tf.split(att_out, self._n_heads, axis=0), axis=2)
+
+        return outputs
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class selfAttention(keras.layers.Layer):
+    def __init__(self, output_dim, **kwargs):
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.output_dim = output_dim
+        super(selfAttention, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        # 为该层创建一个可训练的权重
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.kernel = self.add_weight(name='kernel',
+                                      shape=(3, input_shape[0][2], self.output_dim),
+                                      initializer='uniform',
+                                      trainable=True)
+        # self.W = self.add_weight(name='W',
+        #                          shape=(input_shape[1][2], self.output_dim),
+        #                          initializer='uniform',
+        #                          trainable=True)
+
+        super(selfAttention, self).build(input_shape)  # 一定要在最后调用它
+
+    def call(self, inputs):
+        x = inputs[0]
+        WQ = K.dot(x, self.kernel[0])
+        WK = K.dot(x, self.kernel[1])
+        WV = K.dot(x, self.kernel[2])
+        # WQ.shape (None, 41, 128)
+        # print("WQ.shape", WQ.shape)
+        # 转置 K.permute_dimensions(WK, [0, 2, 1]).shape (None, 128, 41)
+        # print("K.permute_dimensions(WK, [0, 2, 1]).shape", K.permute_dimensions(WK, [0, 2, 1]).shape)
+
+        QK = K.batch_dot(WQ, K.permute_dimensions(WK, [0, 2, 1]))
+
+        QK = QK / (64 ** 0.5)
+
+        weights = K.softmax(QK)
+        # QK.shape (None, 41, 41)
+        # print("QK.shape", weights.shape)
+
+        context_vector = K.batch_dot(weights, WV)
+
+        return context_vector, weights
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1], self.output_dim)
+
+
 def visit_level_precision(y_true, y_pred, rank=[5]):
     recall = list()
     for i in range(len(y_true)):
@@ -320,6 +484,8 @@ if __name__ == '__main__':
     embLayer = MyEmbedding(glove_patient_emb)
     emb = embLayer(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
+    gru_out = MultiHeadAttention(1, 128)([gru_out, gru_out, gru_out])
+    # print(gru_out.shape)
 
     net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
     net_mask = keras.layers.Masking(mask_value=0)(net_input)

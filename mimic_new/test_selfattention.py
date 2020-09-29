@@ -471,7 +471,7 @@ if __name__ == '__main__':
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
     # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(mask)
-    gru_out = MultiHeadAttention(1, 1024)([mask, mask, mask])
+    gru_out = MultiHeadAttention(1, 128)([mask, mask, mask])
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)

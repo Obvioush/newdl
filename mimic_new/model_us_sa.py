@@ -14,10 +14,11 @@ _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 
-gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+# for gpu in gpus:
+#     tf.config.experimental.set_memory_growth(gpu, True)
+# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
 
 def load_data(seqFile, labelFile, treeFile=''):
     sequences = np.array(pickle.load(open(seqFile, 'rb')))
@@ -197,6 +198,169 @@ class ScaledDotProductAttention(keras.layers.Layer):
         return config
 
 
+# class ScaledDotProductAttention(keras.layers.Layer):
+#     def __init__(self, masking=True, future=False, dropout_rate=0., **kwargs):
+#         self._masking = masking
+#         self._future = future
+#         self._dropout_rate = dropout_rate
+#         self._masking_num = -2 ** 32 + 1
+#         super(ScaledDotProductAttention, self).__init__(**kwargs)
+#
+#     def mask(self, inputs, masks):
+#         masks = K.cast(masks, 'float32')
+#         masks = K.tile(masks, [K.shape(inputs)[0] // K.shape(masks)[0], 1])
+#         masks = K.expand_dims(masks, 1)
+#         outputs = inputs + masks * self._masking_num
+#         return outputs
+#
+#     def future_mask(self, inputs):
+#         diag_vals = tf.ones_like(inputs[0, :, :])
+#         tril = tf.linalg.LinearOperatorLowerTriangular(diag_vals).to_dense()
+#         future_masks = tf.tile(tf.expand_dims(tril, 0), [tf.shape(inputs)[0], 1, 1])
+#         paddings = tf.ones_like(future_masks) * self._masking_num
+#         outputs = tf.where(tf.equal(future_masks, 0), paddings, inputs)
+#         return outputs
+#
+#     def call(self, inputs):
+#         if self._masking:
+#             assert len(inputs) == 4, "inputs should be set [queries, keys, values, masks]."
+#             queries, keys, values, masks = inputs
+#         else:
+#             assert len(inputs) == 3, "inputs should be set [queries, keys, values]."
+#             queries, keys, values = inputs
+#
+#         if K.dtype(queries) != 'float32':  queries = K.cast(queries, 'float32')
+#         if K.dtype(keys) != 'float32':  keys = K.cast(keys, 'float32')
+#         if K.dtype(values) != 'float32':  values = K.cast(values, 'float32')
+#
+#         matmul = K.batch_dot(queries, tf.transpose(keys, [0, 2, 1]))  # MatMul
+#         scaled_matmul = matmul / int(queries.shape[-1]) ** 0.5  # Scale
+#         if self._masking:
+#             scaled_matmul = self.mask(scaled_matmul, masks)  # Mask(opt.)
+#
+#         if self._future:
+#             scaled_matmul = self.future_mask(scaled_matmul)
+#
+#         softmax_out = K.softmax(scaled_matmul)  # SoftMax
+#         # Dropout
+#         out = K.dropout(softmax_out, self._dropout_rate)
+#
+#         outputs = K.batch_dot(out, values)
+#
+#         return outputs
+#
+#     def compute_output_shape(self, input_shape):
+#         return input_shape
+
+
+class MultiHeadAttention(keras.layers.Layer):
+
+    def __init__(self, n_heads, head_dim, dropout_rate=.1, masking=False, future=False, trainable=True, **kwargs):
+        self._n_heads = n_heads
+        self._head_dim = head_dim
+        self._dropout_rate = dropout_rate
+        self._masking = masking
+        self._future = future
+        self._trainable = trainable
+        super(MultiHeadAttention, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self._weights_queries = self.add_weight(
+            shape=(input_shape[0][-1], self._n_heads * self._head_dim),
+            initializer='glorot_uniform',
+            trainable=self._trainable,
+            name='weights_queries')
+        self._weights_keys = self.add_weight(
+            shape=(input_shape[1][-1], self._n_heads * self._head_dim),
+            initializer='glorot_uniform',
+            trainable=self._trainable,
+            name='weights_keys')
+        self._weights_values = self.add_weight(
+            shape=(input_shape[2][-1], self._n_heads * self._head_dim),
+            initializer='glorot_uniform',
+            trainable=self._trainable,
+            name='weights_values')
+        super(MultiHeadAttention, self).build(input_shape)
+
+    def call(self, inputs):
+        if self._masking:
+            assert len(inputs) == 4, "inputs should be set [queries, keys, values, masks]."
+            queries, keys, values, masks = inputs
+        else:
+            assert len(inputs) == 3, "inputs should be set [queries, keys, values]."
+            queries, keys, values = inputs
+
+        queries_linear = K.dot(queries, self._weights_queries)
+        keys_linear = K.dot(keys, self._weights_keys)
+        values_linear = K.dot(values, self._weights_values)
+
+        queries_multi_heads = tf.concat(tf.split(queries_linear, self._n_heads, axis=2), axis=0)
+        keys_multi_heads = tf.concat(tf.split(keys_linear, self._n_heads, axis=2), axis=0)
+        values_multi_heads = tf.concat(tf.split(values_linear, self._n_heads, axis=2), axis=0)
+
+        if self._masking:
+            att_inputs = [queries_multi_heads, keys_multi_heads, values_multi_heads, masks]
+        else:
+            att_inputs = [queries_multi_heads, keys_multi_heads, values_multi_heads]
+
+        attention = ScaledDotProductAttention(
+            masking=False, future=self._future, dropout_rate=self._dropout_rate)
+        att_out = attention(att_inputs)
+
+        outputs = tf.concat(tf.split(att_out, self._n_heads, axis=0), axis=2)
+
+        return outputs
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class selfAttention(keras.layers.Layer):
+    def __init__(self, output_dim, **kwargs):
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.output_dim = output_dim
+        super(selfAttention, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        # 为该层创建一个可训练的权重
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.kernel = self.add_weight(name='kernel',
+                                      shape=(3, input_shape[0][2], self.output_dim),
+                                      initializer='uniform',
+                                      trainable=True)
+        # self.W = self.add_weight(name='W',
+        #                          shape=(input_shape[1][2], self.output_dim),
+        #                          initializer='uniform',
+        #                          trainable=True)
+
+        super(selfAttention, self).build(input_shape)  # 一定要在最后调用它
+
+    def call(self, inputs):
+        x = inputs[0]
+        WQ = K.dot(x, self.kernel[0])
+        WK = K.dot(x, self.kernel[1])
+        WV = K.dot(x, self.kernel[2])
+        # WQ.shape (None, 41, 128)
+        # print("WQ.shape", WQ.shape)
+        # 转置 K.permute_dimensions(WK, [0, 2, 1]).shape (None, 128, 41)
+        # print("K.permute_dimensions(WK, [0, 2, 1]).shape", K.permute_dimensions(WK, [0, 2, 1]).shape)
+
+        QK = K.batch_dot(WQ, K.permute_dimensions(WK, [0, 2, 1]))
+
+        QK = QK / (64 ** 0.5)
+
+        weights = K.softmax(QK)
+        # QK.shape (None, 41, 41)
+        # print("QK.shape", weights.shape)
+
+        context_vector = K.batch_dot(weights, WV)
+
+        return context_vector, weights
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1], self.output_dim)
+
+
 def visit_level_precision(y_true, y_pred, rank=[5]):
     recall = list()
     for i in range(len(y_true)):
@@ -239,25 +403,26 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        self.path = 'G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\'
-        self.fileName = 'model_metrics.txt'
+        # self.path = 'G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\'
+        # self.fileName = 'model_metrics.txt'
 
     def on_epoch_end(self, epoch, logs={}):
-        precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
-            model.predict([x_test, net_test])))[0]
+        # precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
+        #     model.predict([x_test, net_test])))[0]
         recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
             model.predict([x_test, net_test])))[0]
-        self.Precision_5.append(precision5)
+        # self.Precision_5.append(precision5)
         self.Recall_5.append(recall5)
-        metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
-        print2file(metricsInfo, self.path, self.fileName)
+        # metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
+        metricsInfo = 'Epoch: %d, - Recall@5: %f' % (epoch + 1, recall5)
+        # print2file(metricsInfo, self.path, self.fileName)
         print(metricsInfo)
 
     def on_train_end(self, logs={}):
         print('Recall@5为:',self.Recall_5,'\n')
         print('Precision@5为:',self.Precision_5)
-        print2file('Recall@5:'+str(self.Recall_5), self.path, self.fileName)
-        print2file('Precision@5:'+str(self.Precision_5), self.path, self.fileName)
+        # print2file('Recall@5:'+str(self.Recall_5), self.path, self.fileName)
+        # print2file('Precision@5:'+str(self.Precision_5), self.path, self.fileName)
 
 
 def print2file(buf, dirs, fileName):
@@ -320,26 +485,23 @@ if __name__ == '__main__':
     embLayer = MyEmbedding(glove_patient_emb)
     emb = embLayer(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
+    sa_out = keras.layers.Attention()([gru_out,gru_out,gru_out])
 
     net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
     net_mask = keras.layers.Masking(mask_value=0)(net_input)
     # net_embLayer = MyEmbedding(node2vec_emb)
     # net_emb = net_embLayer(net_mask)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, gru_out])
-    st = keras.layers.concatenate([gru_out, context_vector], axis=-1)
+    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, sa_out])
+    st = keras.layers.concatenate([sa_out, context_vector], axis=-1)
 
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
 
     model = keras.models.Model(inputs=[gru_input, net_input], outputs=main_output)
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
+    # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
 
-
-    # batch_print_callback = tf.keras.callbacks.LambdaCallback(
-    #     on_epoch_end=lambda batch, logs: print('Precision@5:',visit_level_precision(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0],
-    #                                             'Recall@5:',code_level_accuracy(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0]))
     callback_history = metricsHistory()
-    callback_lists = [callback_history, checkpoint]
+    callback_lists = [callback_history]
     model.summary()
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
@@ -349,37 +511,4 @@ if __name__ == '__main__':
                         validation_data=([x_valid, net_valid], y_valid),
                         callbacks=callback_lists)
 
-    # def plot_learning_curves(history, label, epochs, min_value, max_value):
-    #     data = {}
-    #     data[label] = history.history[label]
-    #     data['val_' + label] = history.history['val_' + label]
-    #     pd.DataFrame(data).plot(figsize=(8, 5))
-    #     plt.grid(True)
-    #     plt.axis([0, epochs, min_value, max_value])
-    #     plt.ylabel('loss')
-    #     # plt.xlabel('迭代次数')
-    #     plt.title('Dropout rate=0.5')
-    #     plt.show()
 
-    # plot_learning_curves(history, 'loss', 100, 0.009, 0.013)
-
-    # preds = model.predict([x_test, tree_test], batch_size=100)
-    #
-    # y_pred = convert2preds(preds)
-    # y_true = process_label(test_set[1])
-    # metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
-    # metrics_codel_level_accuracy = code_level_accuracy(y_true, y_pred)
-    #
-    # print("Top-5 visit_level_precision为：", metrics_visit_level_precision[0])
-    # print("Top-10 visit_level_precision为：", metrics_visit_level_precision[1])
-    # print("Top-15 visit_level_precision为：", metrics_visit_level_precision[2])
-    # print("Top-20 visit_level_precision为：", metrics_visit_level_precision[3])
-    # print("Top-25 visit_level_precision为：", metrics_visit_level_precision[4])
-    # print("Top-30 visit_level_precision为：", metrics_visit_level_precision[5])
-    # print("---------------------------------------------------------")
-    # print("Top-5 codel_level_accuracy为：", metrics_codel_level_accuracy[0])
-    # print("Top-10 codel_level_accuracy为：", metrics_codel_level_accuracy[1])
-    # print("Top-15 codel_level_accuracy为：", metrics_codel_level_accuracy[2])
-    # print("Top-20 codel_level_accuracy为：", metrics_codel_level_accuracy[3])
-    # print("Top-25 codel_level_accuracy为：", metrics_codel_level_accuracy[4])
-    # print("Top-30 codel_level_accuracy为：", metrics_codel_level_accuracy[5])

@@ -14,10 +14,10 @@ _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 
-# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-# for gpu in gpus:
-#     tf.config.experimental.set_memory_growth(gpu, True)
-# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def load_data(seqFile, labelFile, treeFile=''):
@@ -482,7 +482,7 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    embLayer = MyEmbedding(glove_patient_emb)
+    embLayer = MyEmbedding(gram_emb)
     emb = embLayer(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
     sa_out = keras.layers.Attention()([gru_out,gru_out,gru_out])
@@ -506,7 +506,7 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit([x, net], y,
-                        epochs=50,
+                        epochs=100,
                         batch_size=100,
                         validation_data=([x_valid, net_valid], y_valid),
                         callbacks=callback_lists)

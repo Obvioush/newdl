@@ -90,6 +90,7 @@ def padMatrix(seqs, labels, treeseqs):
 
     x = np.zeros((n_samples, maxlen, inputDimSize)).astype(np.float32)
     y = np.zeros((n_samples, maxlen, numClass)).astype(np.float32)
+    y1 = np.zeros((n_samples, numClass)).astype(np.float32)
     tree = np.zeros((n_samples, maxlen, treeDimSize)).astype(np.float32)
     # mask = np.zeros((maxlen, n_samples)).astype(np.float32)
 
@@ -102,9 +103,12 @@ def padMatrix(seqs, labels, treeseqs):
             tvec[subseq] = 1.
         # mask[:lengths[idx], idx] = 1.
 
+    for i in range(n_samples):
+        y1[i] = y[i, len(labels[i])-2, :]
+
     lengths = np.array(lengths, dtype=np.float32)
 
-    return x, y, tree, lengths
+    return x, y1, tree, lengths
 
 
 def calculate_dimSize(seqFile):
@@ -121,7 +125,7 @@ def calculate_dimSize(seqFile):
 def process_label(labelSeqs):
     newlabelSeq = []
     for i in range(len(labelSeqs)):
-        newlabelSeq.append(labelSeqs[i][1:])
+        newlabelSeq.append(labelSeqs[i][-1])
     return newlabelSeq
 
 
@@ -364,26 +368,24 @@ class selfAttention(keras.layers.Layer):
 def visit_level_precision(y_true, y_pred, rank=[5]):
     recall = list()
     for i in range(len(y_true)):
-        for j in range(len(y_true[i])):
-            thisOne = list()
-            codes = y_true[i][j]
-            tops = y_pred[i][j]
-            for rk in rank:
-                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
-            recall.append(thisOne)
+        thisOne = list()
+        codes = y_true[i]
+        tops = y_pred[i]
+        for rk in rank:
+            thisOne.append(len(set(codes).intersection(set(tops[0][:rk]))) * 1.0 / min(rk, len(set(codes))))
+        recall.append(thisOne)
     return (np.array(recall)).mean(axis=0).tolist()
 
 
 def code_level_accuracy(y_true, y_pred, rank=[5]):
     recall = list()
     for i in range(len(y_true)):
-        for j in range(len(y_true[i])):
-            thisOne = list()
-            codes = y_true[i][j]
-            tops = y_pred[i][j]
-            for rk in rank:
-                thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
-            recall.append(thisOne)
+        thisOne = list()
+        codes = y_true[i]
+        tops = y_pred[i]
+        for rk in rank:
+            thisOne.append(len(set(codes).intersection(set(tops[0][:rk]))) * 1.0 / len(set(codes)))
+        recall.append(thisOne)
     return (np.array(recall)).mean(axis=0).tolist()
 
 
@@ -392,8 +394,7 @@ def convert2preds(preds):
     ccs_preds = []
     for i in range(len(preds)):
         temp = []
-        for j in range(len(preds[i])):
-            temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
+        temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i]), key=operator.itemgetter(1))))[0])
         ccs_preds.append(temp)
     return ccs_preds
 
@@ -409,8 +410,10 @@ class metricsHistory(Callback):
     def on_epoch_end(self, epoch, logs={}):
         # precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
         #     model.predict([x_test, net_test])))[0]
-        recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
-            model.predict([x_test, net_test])))[0]
+        # recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
+        #     model.predict([x_test, net_test])))[0]
+        recall5 = code_level_accuracy(process_label(test_set[1]), convert2preds(
+            model.predict(x_test)))[0]
         # self.Precision_5.append(precision5)
         self.Recall_5.append(recall5)
         # metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
@@ -480,23 +483,38 @@ if __name__ == '__main__':
     net_valid = tf.matmul(net_valid, tf.expand_dims(node2vec_emb, 0))
     net_test = tf.matmul(net_test, tf.expand_dims(node2vec_emb, 0))
 
-    gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
-    mask = keras.layers.Masking(mask_value=0)(gru_input)
-    embLayer = MyEmbedding(gram_emb)
-    emb = embLayer(mask)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
-    sa_out = keras.layers.Attention()([gru_out,gru_out,gru_out])
+    input = keras.layers.Input((x.shape[1], x.shape[2]), name='input')
+    mask = keras.layers.Masking(mask_value=0)(input)
+    # embLayer = MyEmbedding(gram_emb)
+    # emb = embLayer(mask)
+    emb = keras.layers.Dense(128, activation='relu')(mask)
+    cnn1 = keras.layers.Conv1D(128, 2, activation='relu')(emb)
+    cnn1 = keras.layers.GlobalMaxPooling1D()(cnn1)
+    cnn2 = keras.layers.Conv1D(128, 3, activation='relu')(emb)
+    cnn2 = keras.layers.GlobalMaxPooling1D()(cnn2)
+    cnn3 = keras.layers.Conv1D(128, 4, activation='relu')(emb)
+    cnn3 = keras.layers.GlobalMaxPooling1D()(cnn3)
+    cnn4 = keras.layers.Conv1D(128, 5, activation='relu')(emb)
+    cnn4 = keras.layers.GlobalMaxPooling1D()(cnn4)
+    cnn = keras.layers.Concatenate(axis=-1)([cnn1, cnn2, cnn3, cnn4])
+    # flat = keras.layers.Flatten(cnn)
+    out = keras.layers.Dense(283, activation='softmax')(cnn)
 
-    net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
-    net_mask = keras.layers.Masking(mask_value=0)(net_input)
-    # net_embLayer = MyEmbedding(node2vec_emb)
-    # net_emb = net_embLayer(net_mask)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, sa_out])
-    st = keras.layers.concatenate([sa_out, context_vector], axis=-1)
+    model = keras.models.Model(inputs=input, outputs=out)
 
-    main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
-
-    model = keras.models.Model(inputs=[gru_input, net_input], outputs=main_output)
+    # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
+    # sa_out = keras.layers.Attention()([gru_out,gru_out,gru_out])
+    #
+    # net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
+    # net_mask = keras.layers.Masking(mask_value=0)(net_input)
+    # # net_embLayer = MyEmbedding(node2vec_emb)
+    # # net_emb = net_embLayer(net_mask)
+    # context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, sa_out])
+    # st = keras.layers.concatenate([sa_out, context_vector], axis=-1)
+    #
+    # main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
+    #
+    # model = keras.models.Model(inputs=[input, net_input], outputs=main_output)
 
     # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
 
@@ -505,10 +523,10 @@ if __name__ == '__main__':
     model.summary()
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
-    history = model.fit([x, net], y,
-                        epochs=1,
+    history = model.fit(x, y,
+                        epochs=10,
                         batch_size=100,
-                        validation_data=([x_valid, net_valid], y_valid),
+                        validation_data=(x_valid, y_valid),
                         callbacks=callback_lists)
 
 

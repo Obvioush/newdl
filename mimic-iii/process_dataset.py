@@ -30,7 +30,7 @@ if __name__ == '__main__':
         count += 1
     infd.close()
 
-    # 将icd-9编码按照ccs分组
+    # 将单级分类中的icd-9编码按照ccs分组
     label_ref = {}
     infd = open(dxref, 'r')
     infd.readline()

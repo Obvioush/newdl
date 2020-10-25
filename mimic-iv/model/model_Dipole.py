@@ -85,9 +85,9 @@ def padMatrix(seqs, labels, treeseqs):
     numClass = calculate_dimSize('../resource/process_data/mimic4_ccs.labelseqs')
     treeDimSize = calculate_dimSize('../resource/process_data/mimic4.treeseqs')
 
-    x = np.zeros((n_samples, maxlen, inputDimSize)).astype(np.float32)
-    y = np.zeros((n_samples, maxlen, numClass)).astype(np.float32)
-    tree = np.zeros((n_samples, maxlen, treeDimSize)).astype(np.float32)
+    x = np.zeros((n_samples, maxlen, inputDimSize), dtype=np.int8)
+    y = np.zeros((n_samples, maxlen, numClass), dtype=np.int8)
+    tree = np.zeros((n_samples, maxlen, treeDimSize), dtype=np.int8)
     # mask = np.zeros((maxlen, n_samples)).astype(np.float32)
 
     for idx, (seq, lseq, tseq) in enumerate(zip(seqs, labels, treeseqs)):
@@ -293,11 +293,11 @@ if __name__ == '__main__':
 
     history = model.fit(x, y,
                         epochs=10,
-                        batch_size=1,
+                        batch_size=100,
                         validation_data=(x_valid, y_valid))
                         # callbacks=callback_lists)
 
-    preds = model.predict(x_test, batch_size=1)
+    preds = model.predict(x_test, batch_size=100)
 
 
     def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):

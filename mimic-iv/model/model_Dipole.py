@@ -11,10 +11,10 @@ _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 
-# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-# for gpu in gpus:
-#     tf.config.experimental.set_memory_growth(gpu, True)
-# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def load_data(seqFile, labelFile, treeFile=''):
@@ -292,7 +292,7 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit(x, y,
-                        epochs=10,
+                        epochs=5,
                         batch_size=100,
                         validation_data=(x_valid, y_valid))
                         # callbacks=callback_lists)

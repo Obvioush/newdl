@@ -15,10 +15,10 @@ _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 
-# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-# for gpu in gpus:
-#     tf.config.experimental.set_memory_growth(gpu, True)
-# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def load_data(seqFile, labelFile, treeFile=''):
@@ -485,8 +485,9 @@ if __name__ == '__main__':
     mask = keras.layers.Masking(mask_value=0)(gru_input)
     embLayer = MyEmbedding(gram_emb)
     emb = embLayer(mask)
-    tcn = TCN(nb_filters=128, return_sequences=True, use_skip_connections=True)(emb)
-    # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
+    tcn = TCN(nb_filters=128, return_sequences=True, use_skip_connections=True, dropout_rate=0.5)(gru_out)
+    # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(tcn)
     # sa_out = keras.layers.Attention()([gru_out,gru_out,gru_out])
 
     net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
@@ -508,7 +509,7 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit([x, net], y,
-                        epochs=10,
+                        epochs=50,
                         batch_size=100,
                         validation_data=([x_valid, net_valid], y_valid),
                         callbacks=callback_lists)

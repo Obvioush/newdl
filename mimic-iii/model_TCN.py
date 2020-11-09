@@ -486,7 +486,8 @@ if __name__ == '__main__':
     embLayer = MyEmbedding(gram_emb)
     emb = embLayer(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
-    tcn = TCN(nb_filters=128, return_sequences=True, use_skip_connections=True, dropout_rate=0.5)(gru_out)
+    tcn = TCN(nb_filters=128, return_sequences=True, use_skip_connections=True, dropout_rate=0.5)(mask)
+    st1 = keras.layers.concatenate([gru_out,tcn],axis=-1)
     # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(tcn)
     # sa_out = keras.layers.Attention()([gru_out,gru_out,gru_out])
 
@@ -494,9 +495,8 @@ if __name__ == '__main__':
     net_mask = keras.layers.Masking(mask_value=0)(net_input)
     # net_embLayer = MyEmbedding(node2vec_emb)
     # net_emb = net_embLayer(net_mask)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, tcn])
-    st = keras.layers.concatenate([tcn, context_vector], axis=-1)
-
+    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, st1])
+    st = keras.layers.concatenate([st1, context_vector], axis=-1)
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
 
     model = keras.models.Model(inputs=[gru_input, net_input], outputs=main_output)

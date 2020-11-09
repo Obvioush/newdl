@@ -485,16 +485,21 @@ if __name__ == '__main__':
     embLayer = MyEmbedding(gram_emb)
     emb = embLayer(mask)
     sa = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
-    sa = keras.layers.Attention()([sa,sa])
-    # sa = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(sa)
-    # sa = keras.layers.Attention()([sa, sa])
+    head1 = keras.layers.Attention()([sa,sa])
+    head2 = keras.layers.Attention()([sa,sa])
+
+    # head1 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head1)
+    # head2 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head2)
+    # head1 = keras.layers.Attention()([head1, head1])
+    # head2 = keras.layers.Attention()([head2, head2])
+    rnn_self = keras.layers.concatenate([head1,head2],axis=-1)
 
     net_input = keras.layers.Input((net.shape[1], net.shape[2]), name='tree_input')
     net_mask = keras.layers.Masking(mask_value=0)(net_input)
     # net_embLayer = MyEmbedding(node2vec_emb)
     # net_emb = net_embLayer(net_mask)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, sa])
-    st = keras.layers.concatenate([sa, context_vector], axis=-1)
+    context_vector, weights = ScaledDotProductAttention(output_dim=128)([net_mask, rnn_self])
+    st = keras.layers.concatenate([rnn_self, context_vector], axis=-1)
 
     main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(st)
 
@@ -508,7 +513,7 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit([x, net], y,
-                        epochs=50,
+                        epochs=100,
                         batch_size=100,
                         validation_data=([x_valid, net_valid], y_valid),
                         callbacks=callback_lists)

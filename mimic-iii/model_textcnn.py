@@ -524,7 +524,7 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit(x, y,
-                        epochs=10,
+                        epochs=1,
                         batch_size=100,
                         validation_data=(x_valid, y_valid),
                         callbacks=callback_lists)

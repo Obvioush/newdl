@@ -50,7 +50,8 @@ if __name__ == '__main__':
     for patient in seqs:
         newVisit = []
         for visit in patient[-1]:
-            newVisit.append(indexMap[visit])
+            if indexMap[visit] not in newVisit:
+                newVisit.append(indexMap[visit])
         newLabel.append(newVisit)
 
-    # pickle.dump(newLabel, open(outFile + '.label', 'wb'), -1)
+    # pickle.dump(newLabel, open(outFile + '.labels', 'wb'), -1)

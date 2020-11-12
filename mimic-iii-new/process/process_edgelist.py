@@ -17,7 +17,7 @@ def tree_levelall():
 
 
 if __name__ == '__main__':
-    # outFile1 = '../resource/mimic3_tree'
+    outFile = '../resource/mimic3'
 
     types = pickle.load(open('../resource/mimic3.types', 'rb'))
     retype = dict([(v, k) for k, v in types.items()])
@@ -52,4 +52,7 @@ if __name__ == '__main__':
     g = dgl.graph((src_ids, dst_ids))
     # 有向图转为无向图
     bg = dgl.to_bidirected(g)
-    print(g)
+    # print(g)
+
+    bbg = dgl.add_self_loop(bg)
+    # pickle.dump(bbg, open(outFile + '.graph', 'wb'), -1)

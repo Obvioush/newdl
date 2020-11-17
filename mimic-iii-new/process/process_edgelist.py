@@ -1,6 +1,7 @@
 import pickle
 import dgl
 import tensorflow as tf
+import networkx as nx
 
 
 def tree_levelall():
@@ -56,3 +57,4 @@ if __name__ == '__main__':
 
     bbg = dgl.add_self_loop(bg)
     # pickle.dump(bbg, open(outFile + '.graph', 'wb'), -1)
+    nx.draw_networkx(bbg)

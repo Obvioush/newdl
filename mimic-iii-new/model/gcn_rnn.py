@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import heapq
 import operator
 import os
+from graph import GraphConvolution
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
@@ -19,10 +20,10 @@ codeCount = 5608  # icd9+ccs分类数
 labelCount = 272  # 标签的类别数
 
 
-gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+# for gpu in gpus:
+#     tf.config.experimental.set_memory_growth(gpu, True)
+# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def load_data(seqFile, labelFile, treeFile=''):
@@ -207,34 +208,38 @@ if __name__ == '__main__':
     x_valid, y_valid = padMatrix(valid_set[0], valid_set[1])
     x_test, y_test = padMatrix(test_set[0], test_set[1])
 
+    tf.compat.v1.disable_eager_execution()
 
-    model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
-    mask = keras.layers.Masking(mask_value=0)(model_input)
-    mask = tf.expand_dims(mask, axis=-1)
-    # embLayer = MyEmbedding(glove_patient_emb)
-    # emb = embLayer(mask)
+    # Same as previous
+    device_spec = tf.DeviceSpec(job="ps", device_type="CPU", device_index=0)
+    with tf.device(device_spec):
+        model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
+        mask = keras.layers.Masking(mask_value=0)(model_input)
+        # mask = tf.expand_dims(mask, axis=-1)
+        # embLayer = MyEmbedding(glove_patient_emb)
+        # emb = embLayer(mask)
+        # print(g.shape)
+        print(mask.shape.ndims)
+        conv = GraphConv(1, 10)
+        gcn = conv(g, mask)
+        # gru = keras.layers.GRU(gru_dimentions, dropout=0.5)(mask)
+        # sa = keras.layers.Attention(use_scale=True)([gru_out,gru_out])
+        # regcn = keras.layers.Permute((1, 2))(gcn)
+        model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(regcn)
 
-    print(mask.shape.ndims)
-    conv = GraphConv(1, 10)
-    gcn = conv(g, mask)
-    # gru = keras.layers.GRU(gru_dimentions, dropout=0.5)(mask)
-    # sa = keras.layers.Attention(use_scale=True)([gru_out,gru_out])
-    regcn = keras.layers.Permute((1, 2))(gcn)
-    model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(regcn)
+        model = keras.models.Model(inputs=model_input, outputs=model_output)
 
-    model = keras.models.Model(inputs=model_input, outputs=model_output)
+        # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
+        # batch_print_callback = tf.keras.callbacks.LambdaCallback(
+        #     on_epoch_end=lambda batch, logs: print('Precision@5:',visit_level_precision(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0],
+        #                                             'Recall@5:',code_level_accuracy(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0]))
 
-    # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
-    # batch_print_callback = tf.keras.callbacks.LambdaCallback(
-    #     on_epoch_end=lambda batch, logs: print('Precision@5:',visit_level_precision(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0],
-    #                                             'Recall@5:',code_level_accuracy(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0]))
+        model.summary()
+        model.compile(optimizer='adam', loss='binary_crossentropy')
 
-    model.summary()
-    model.compile(optimizer='adam', loss='binary_crossentropy')
-
-    callback_history = metricsHistory()
-    history = model.fit(x, y,
-                        epochs=1,
-                        batch_size=100,
-                        validation_data=(x_valid, y_valid),
-                        callbacks=[callback_history])
+        callback_history = metricsHistory()
+        history = model.fit(x, y,
+                            epochs=1,
+                            batch_size=1,
+                            validation_data=(x_valid, y_valid),
+                            callbacks=[callback_history])

@@ -14,7 +14,6 @@ _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
 codeCount = 5608  # icd9+ccs分类数
 labelCount = 272  # 标签的类别数
-SYM_NORM = True
 
 
 # gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
@@ -101,26 +100,6 @@ def padMatrix(seqs, labels, treeseqs=''):
         # mask[:lengths[idx], idx] = 1.
     y = np.squeeze(y)
     return x, y
-
-
-class MyEmbedding(keras.layers.Layer):
-    def __init__(self,embedding_matrix, **kwargs):
-        self.embedding_matrix = embedding_matrix
-        super(MyEmbedding, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        # assert isinstance(input_shape, list)
-        # Create a trainable weight variable for this layer.
-        self.kernel = self.add_weight(name='embedding_matrix',
-                                      shape=(self.embedding_matrix.shape[0], self.embedding_matrix.shape[1]),
-                                      initializer=keras.initializers.constant(self.embedding_matrix),
-                                      trainable=True)
-        super(MyEmbedding, self).build(input_shape)  # Be sure to call this at the end
-
-    def call(self, inputs):
-        # assert isinstance(x, list)
-        emb = K.tanh(K.dot(inputs, self.kernel))
-        return emb
 
 
 class metricsHistory(Callback):

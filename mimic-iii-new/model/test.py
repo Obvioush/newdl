@@ -16,7 +16,7 @@ from utils import *
 FILTER = 'localpool'  # 'localpool' or 'chebyshev'
 MAX_DEGREE = 2  # maximum polynomial degree
 SYM_NORM = True  # symmetric (True) vs. left-only (False) normalization
-NB_EPOCH = 200
+NB_EPOCH = 1
 PATIENCE = 30  # early stopping patience
 
 

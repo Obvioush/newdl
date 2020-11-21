@@ -57,16 +57,16 @@ if __name__ == '__main__':
 
 
     # glove embedding相关
-    # a = np.load('./resource/embedding/gram_128.33.npz')
-    # b = a['W_emb'][:4893]
-    # np.save('./resource/embedding/gram_128', b)
-
-
-    glove_emb = load_embedding('./resource/embedding/comap.63.npz')
-    # np.save('./resource/embedding/gram_glove_all', glove_emb)
-    glove_patient_emb = glove_emb[:4893]
-    glove_knowledge_emb = glove_emb[4894:]
-    np.save('./resource/embedding/glove_patient', glove_patient_emb)
-    np.save('./resource/embedding/glove_knowledge', glove_knowledge_emb)
-    # emb1 = np.load('/Users/masaka/Documents/mimic相关/process_mimic数据/comap/glove_test.npy')
+    # # a = np.load('./resource/embedding/gram_128.33.npz')
+    # # b = a['W_emb'][:4893]
+    # # np.save('./resource/embedding/gram_128', b)
+    #
+    #
+    # glove_emb = load_embedding('./resource/embedding/comap.63.npz')
+    # # np.save('./resource/embedding/gram_glove_all', glove_emb)
+    # glove_patient_emb = glove_emb[:4893]
+    # glove_knowledge_emb = glove_emb[4894:]
+    # np.save('./resource/embedding/glove_patient', glove_patient_emb)
+    # np.save('./resource/embedding/glove_knowledge', glove_knowledge_emb)
+    # # emb1 = np.load('/Users/masaka/Documents/mimic相关/process_mimic数据/comap/glove_test.npy')
 

@@ -1,4 +1,4 @@
-import _pickle as pickle
+import pickle
 
 
 def convert_to_icd9(dxStr):

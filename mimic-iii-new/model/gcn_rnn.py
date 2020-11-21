@@ -211,35 +211,35 @@ if __name__ == '__main__':
     tf.compat.v1.disable_eager_execution()
 
     # Same as previous
-    device_spec = tf.DeviceSpec(job="ps", device_type="CPU", device_index=0)
-    with tf.device(device_spec):
-        model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
-        mask = keras.layers.Masking(mask_value=0)(model_input)
-        # mask = tf.expand_dims(mask, axis=-1)
-        # embLayer = MyEmbedding(glove_patient_emb)
-        # emb = embLayer(mask)
-        # print(g.shape)
-        print(mask.shape.ndims)
-        conv = GraphConv(1, 10)
-        gcn = conv(g, mask)
-        # gru = keras.layers.GRU(gru_dimentions, dropout=0.5)(mask)
-        # sa = keras.layers.Attention(use_scale=True)([gru_out,gru_out])
-        # regcn = keras.layers.Permute((1, 2))(gcn)
-        model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(regcn)
-
-        model = keras.models.Model(inputs=model_input, outputs=model_output)
-
-        # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
-        # batch_print_callback = tf.keras.callbacks.LambdaCallback(
-        #     on_epoch_end=lambda batch, logs: print('Precision@5:',visit_level_precision(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0],
-        #                                             'Recall@5:',code_level_accuracy(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0]))
-
-        model.summary()
-        model.compile(optimizer='adam', loss='binary_crossentropy')
-
-        callback_history = metricsHistory()
-        history = model.fit(x, y,
-                            epochs=1,
-                            batch_size=1,
-                            validation_data=(x_valid, y_valid),
-                            callbacks=[callback_history])
+    # device_spec = tf.DeviceSpec(job="ps", device_type="CPU", device_index=0)
+    # with tf.device(device_spec):
+    #     model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
+    #     mask = keras.layers.Masking(mask_value=0)(model_input)
+    #     # mask = tf.expand_dims(mask, axis=-1)
+    #     # embLayer = MyEmbedding(glove_patient_emb)
+    #     # emb = embLayer(mask)
+    #     # print(g.shape)
+    #     print(mask.shape.ndims)
+    #     conv = GraphConv(1, 10)
+    #     gcn = conv(g, mask)
+    #     # gru = keras.layers.GRU(gru_dimentions, dropout=0.5)(mask)
+    #     # sa = keras.layers.Attention(use_scale=True)([gru_out,gru_out])
+    #     # regcn = keras.layers.Permute((1, 2))(gcn)
+    #     model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(regcn)
+    #
+    #     model = keras.models.Model(inputs=model_input, outputs=model_output)
+    #
+    #     # checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath='G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\model_{epoch:02d}', save_freq='epoch')
+    #     # batch_print_callback = tf.keras.callbacks.LambdaCallback(
+    #     #     on_epoch_end=lambda batch, logs: print('Precision@5:',visit_level_precision(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0],
+    #     #                                             'Recall@5:',code_level_accuracy(process_label(test_set[1]), convert2preds(model.predict([x_test, tree_test], batch_size=100)))[0]))
+    #
+    #     model.summary()
+    #     model.compile(optimizer='adam', loss='binary_crossentropy')
+    #
+    #     callback_history = metricsHistory()
+    #     history = model.fit(x, y,
+    #                         epochs=1,
+    #                         batch_size=1,
+    #                         validation_data=(x_valid, y_valid),
+    #                         callbacks=[callback_history])

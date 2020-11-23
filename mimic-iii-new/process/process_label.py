@@ -47,6 +47,7 @@ if __name__ == '__main__':
         indexMap[k] = ccsMap[v]
 
     newLabel = []
+    # 只保留序列最后一个
     for patient in seqs:
         newVisit = []
         for visit in patient[-1]:
@@ -54,4 +55,17 @@ if __name__ == '__main__':
                 newVisit.append(indexMap[visit])
         newLabel.append(newVisit)
 
+    newAllLabel = []
+    # 和x_seq一样
+    for patient in seqs:
+        newPatient = []
+        for visit in patient:
+            newVisit = []
+            for code in visit:
+                if indexMap[code] not in newVisit:
+                    newVisit.append(indexMap[code])
+            newPatient.append(newVisit)
+        newAllLabel.append(newPatient)
+
     # pickle.dump(newLabel, open(outFile + '.labels', 'wb'), -1)
+    # pickle.dump(newAllLabel, open(outFile + '.allLabels', 'wb'), -1)

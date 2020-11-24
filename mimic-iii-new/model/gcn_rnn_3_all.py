@@ -187,7 +187,7 @@ if __name__ == '__main__':
     gcn_emb = pickle.load(open('../resource/gcn_emb_onehot.emb', 'rb'))
 
     # node2vec Embedding
-    patient_emb = np.load('../resource/node2vec_emb/patient_emb.npy')
+    # patient_emb = np.load('../resource/node2vec_emb/patient_emb.npy')
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile)
     x, y = padMatrix(train_set[0], train_set[1])
@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
     callback_history = metricsHistory()
     history = model.fit(x, y,
-                        epochs=40,
+                        epochs=150,
                         batch_size=100,
                         validation_data=(x_valid, y_valid),
                         callbacks=[callback_history])

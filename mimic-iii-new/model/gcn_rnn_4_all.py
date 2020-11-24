@@ -262,7 +262,7 @@ if __name__ == '__main__':
     emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb), name='emb')(mask)
     rnn = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
     head1 = keras.layers.Attention()([rnn, rnn])
-    # head2 = keras.layers.Attention()([sa, sa])
+    # head2 = keras.layers.Attention()([rnn, rnn])
     # head1 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head1)
     # head2 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head2)
     # head1 = keras.layers.Attention()([head1, head1])

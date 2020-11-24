@@ -180,10 +180,8 @@ if __name__ == '__main__':
     labelFile = '../resource/mimic3.labels'
     gcn_emb = pickle.load(open('../resource/gcn_emb_onehot.emb', 'rb'))
 
-    # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
-    # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
-    # types = pickle.load(open('./resource/build_trees.types', 'rb'))
-    # retype = dict([(v, k) for k, v in types.items()])
+    # gcn Embedding
+    diagcode_emb = gcn_emb[0]
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile)
     x, y = padMatrix(train_set[0], train_set[1])
@@ -194,22 +192,23 @@ if __name__ == '__main__':
     model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
     mask = keras.layers.Masking(mask_value=0)(model_input)
 
-    emb = keras.layers.Dense(128,name='emb')(mask)
+    emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb),
+                             name='emb')(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
     sa = keras.layers.Attention(use_scale=True)([gru_out, gru_out])
-    gru_2 = keras.layers.GRU(gru_dimentions, return_sequences=False, dropout=0.5)(sa)
-    model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(gru_2)
+    gru = keras.layers.GRU(gru_dimentions, return_sequences=False)(sa)
+    model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(gru)
 
     model = keras.models.Model(inputs=model_input, outputs=model_output)
 
     model.summary()
-    dense3 = model.get_layer('emb')
-    dense3.set_weights(gcn_emb)
+    # dense3 = model.get_layer('emb')
+    # dense3.set_weights(gcn_emb)
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     callback_history = metricsHistory()
     history = model.fit(x, y,
-                        epochs=40,
+                        epochs=150,
                         batch_size=100,
                         validation_data=(x_valid, y_valid),
                         callbacks=[callback_history])

@@ -252,18 +252,6 @@ if __name__ == '__main__':
     x_valid, y_valid, tree_valid = padMatrix(valid_set[0], valid_set[1], valid_set[2])
     x_test, y_test, tree_test = padMatrix(test_set[0], test_set[1], test_set[2])
 
-
-    # model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
-    # mask = keras.layers.Masking(mask_value=0)(model_input)
-    #
-    # emb = keras.layers.Dense(128,name='emb')(mask)
-    # gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
-    # sa = keras.layers.Attention(use_scale=True)([gru_out, gru_out])
-    # gru_2 = keras.layers.GRU(gru_dimentions, return_sequences=False, dropout=0.5)(sa)
-    # model_output = keras.layers.Dense(labelCount, activation='softmax', name='model_output')(gru_2)
-    #
-    # model = keras.models.Model(inputs=model_input, outputs=model_output)
-
     model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
     mask = keras.layers.Masking(mask_value=0)(model_input)
     emb = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(diagcode_emb), name='emb')(mask)

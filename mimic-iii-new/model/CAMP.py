@@ -111,57 +111,111 @@ def padMatrix(seqs, labels, treeseqs=''):
         return x, y
 
 
-class ScaledDotProductAttention(keras.layers.Layer):
-    def __init__(self, output_dim, **kwargs):
-        # inputs.shape = (batch_size, time_steps, seq_len)
-        self.output_dim = output_dim
-        super(ScaledDotProductAttention, self).__init__(**kwargs)
+class coAttention(keras.layers.Layer):
+    def __init__(self, units, sta_dimention):
+        super(coAttention, self).__init__()
+        self.units = units
+        self.d3 = sta_dimention
 
     def build(self, input_shape):
         # 为该层创建一个可训练的权重
         # inputs.shape = (batch_size, time_steps, seq_len)
-        self.kernel = self.add_weight(name='kernel',
-                                      shape=(2, input_shape[0][2], self.output_dim),
-                                      initializer='uniform',
-                                      trainable=True)
-        self.W = self.add_weight(name='W',
-                                 shape=(input_shape[1][2], self.output_dim),
+        self.Wp = self.add_weight(name='Wp',
+                                 shape=(self.d3, input_shape[1][1]),
                                  initializer='uniform',
                                  trainable=True)
+        self.bp = self.add_weight(name='bp',
+                                  shape=(self.d3,),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.W3 = self.add_weight(name='W3',
+                                  shape=(self.d3, input_shape[2][2]),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.W4 = self.add_weight(name='W4',
+                                  shape=(self.d3, self.d3),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.b3 = self.add_weight(name='b3',
+                                  shape=(self.d3,),
+                                  initializer='uniform',
+                                  trainable=True)
+        super(memoryAttention, self).build(input_shape)  # 一定要在最后调用它
 
-        super(ScaledDotProductAttention, self).build(input_shape)  # 一定要在最后调用它
 
     def call(self, inputs):
-        Lt, rnn_ht = inputs
-        WQ = K.dot(rnn_ht, self.W)
-        WK = K.dot(Lt, self.kernel[0])
-        WV = K.dot(Lt, self.kernel[1])
-        # WQ.shape (None, 41, 128)
-        # print("WQ.shape", WQ.shape)
-        # 转置 K.permute_dimensions(WK, [0, 2, 1]).shape (None, 128, 41)
-        # print("K.permute_dimensions(WK, [0, 2, 1]).shape", K.permute_dimensions(WK, [0, 2, 1]).shape)
+        K, Q, M, ht = inputs
+        q = tf.matmul(self.Wp, Q) + self.bp
+        concat = keras.layers.concatenate([ht, q])
+        mlp = keras.layers.Dense(self.units)(concat)
 
-        QK = K.batch_dot(WQ, K.permute_dimensions(WK, [0, 2, 1]))
+        scores = tf.matmul(K, mlp, transpose_b=True)
+        distribution = tf.nn.softmax(scores)
 
-        QK = QK / (64 ** 0.5)
+        Belta = tf.nn.relu(tf.matmul(self.W3, M)+tf.matmul(self.W4, q)+self.b3)
 
-        weights = K.softmax(QK)
-        # QK.shape (None, 41, 41)
-        # print("QK.shape", weights.shape)
+        q_new = tf.multiply(Belta, q)
 
-        context_vector = K.batch_dot(weights, WV)
+        return q_new
 
-        return context_vector, weights
 
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], input_shape[1], self.output_dim)
+class memoryAttention(keras.layers.Layer):
+    def __init__(self, units, v_dimention):
+        super(memoryAttention, self).__init__()
+        self.units = units
+        self.dv = v_dimention
 
-    def get_config(self):
-        config = super().get_config().copy()
-        config.update({
-            'output_dim': self.output_dim,
-        })
-        return config
+    def build(self, input_shape):
+        # 为该层创建一个可训练的权重
+        # inputs.shape = (batch_size, time_steps, seq_len)
+        self.W1 = self.add_weight(name='W1',
+                                 shape=(self.dv, input_shape[1][2]),
+                                 initializer='uniform',
+                                 trainable=True)
+        self.b1 = self.add_weight(name='b1',
+                                  shape=(self.dv,),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.W2 = self.add_weight(name='W2',
+                                  shape=(self.dv, input_shape[1][2]),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.b2 = self.add_weight(name='b2',
+                                  shape=(self.dv,),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.E = self.add_weight(name='E',
+                                  shape=(18, self.dv),
+                                  initializer=keras.initializers.ones,
+                                  trainable=False)
+
+        super(memoryAttention, self).build(input_shape)  # 一定要在最后调用它
+
+
+    def call(self, inputs):
+        K, ht, V = inputs
+        # Lt.shape:(batch_size, length, size, units)=>(5250,41,84,128)
+        # rnn_ht.shape:(batch_size, length, units) =>(5250,41,128)
+
+        # ht.shape:(batch_size, length, size, units)=>(5250,41,1,128)
+        mlp_ht = keras.layers.Dense(self.units)(ht)
+        # score.shape:(batch_size, length, size, 1)
+        scores = tf.matmul(K, mlp_ht, transpose_b=True)
+
+        # (Alpha)attention_weights.shape:(batch_size, length, size, 1)
+        distribution = tf.nn.softmax(scores)
+
+        erase = tf.nn.sigmoid(tf.matmul(self.W1, ht) + self.b1)
+        add = tf.nn.tanh(tf.matmul(self.W2, ht) + self.b2)
+        V = tf.multiply(V, (self.E - tf.matmul(distribution, erase))) + tf.matmul(distribution, add)
+        # context_vector.shape: (batch_size, length, size, units)
+        # tensorflow自己做扩展，把Alpha的1扩展为units
+        M = tf.matmul(distribution, V)
+
+        # 在size维度求和，context_vector.shape:(batch_size, length, units)
+        M = tf.reduce_sum(M, axis=2)
+
+        return M
 
 
 def visit_level_precision(y_true, y_pred, rank=[5]):
@@ -250,45 +304,47 @@ if __name__ == '__main__':
     gcn_emb = pickle.load(open('../resource/gcn_emb_onehot.emb', 'rb'))
 
     # node2vec Embedding
-    # diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
+    diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
     # knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
 
     # gcn Embedding
-    diagcode_emb = gcn_emb[0][:4880]
-    knowledge_emb = gcn_emb[0][4880:]
+    # diagcode_emb = gcn_emb[0][:4880]
+    # knowledge_emb = gcn_emb[0][4880:]
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, knowledgeFile)
     x, y, tree = padMatrix(train_set[0], train_set[1],train_set[2])
     x_valid, y_valid, tree_valid = padMatrix(valid_set[0], valid_set[1], valid_set[2])
     x_test, y_test, tree_test = padMatrix(test_set[0], test_set[1], test_set[2])
 
+    # test
+    sta = np.random.random((x.shape[0], x.shape[1], 4))
+    sta_valid = np.random.random((x_valid.shape[0], x_valid.shape[1], 4))
+    K = np.random.random((x.shape[0], 18, 128))
+    K_valid = np.random.random((x_valid.shape[0], 18, 128))
+    V = np.random.random((x.shape[0], 18, 128))
+    V_valid = np.random.random((x_valid.shape[0], 18, 128))
+
     model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
+    K_input = keras.layers.Input((K.shape[1], K.shape[2]), name='K_input')
+    V_input = keras.layers.Input((V.shape[1], V.shape[2]), name='V_input')
+    sta_input = keras.layers.Input((sta.shape[1], sta.shape[2]), name='sta_input')
     mask = keras.layers.Masking(mask_value=0)(model_input)
     emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb), name='emb')(mask)
     rnn = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
-    head1 = keras.layers.Attention()([rnn, rnn])
-    # head2 = keras.layers.Attention()([rnn, rnn])
-    # head1 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head1)
-    # head2 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head2)
-    # head1 = keras.layers.Attention()([head1, head1])
-    # head2 = keras.layers.Attention()([head2, head2])
-    # rnn_self = keras.layers.concatenate([head1, head2], axis=-1)
 
-    tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
-    tree_mask = keras.layers.Masking(mask_value=0)(tree_input)
-    tree_emb = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(knowledge_emb),
-                                    trainable=True, name='tree_emb')(tree_mask)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([tree_emb, head1])
-    st = keras.layers.concatenate([head1, context_vector], axis=-1)
-    model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(st)
+    memory = memoryAttention(units=128, v_dimention=128)([K_input, rnn, V_input])
+    q = coAttention(units=128, sta_dimention=128)([K_input, sta_input, memory, rnn])
 
-    model = keras.models.Model(inputs=[model_input, tree_input], outputs=model_output)
+    concat = keras.layers.concatenate([rnn, memory, q])
+
+    model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(concat)
+
+    model = keras.models.Model(inputs=[model_input, K_input, V_input, sta_input], outputs=model_output)
     model.summary()
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     callback_history = metricsHistory()
-    history = model.fit([x, tree], y,
-                        epochs=80,
-                        batch_size=100,
-                        validation_data=([x_valid, tree_valid], y_valid),
-                        callbacks=[callback_history])
+    history = model.fit([x, K, V, sta], y,
+                        epochs=1,
+                        batch_size=10,
+                        validation_data=([x_valid, K_valid, V_valid,sta_valid], y_valid))

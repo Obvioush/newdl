@@ -1,14 +1,12 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras.callbacks import Callback
-import tensorflow.keras.backend as K
-import pickle
+import _pickle as pickle
 import numpy as np
 import heapq
 import operator
 import os
 
-from utils import *
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
@@ -17,13 +15,13 @@ codeCount = 4880  # icd9数
 labelCount = 272  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 41
+train_epoch = 1
+train_batch_size = 100
 
-
-# gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
-# for gpu in gpus:
-#     tf.config.experimental.set_memory_growth(gpu, True)
-# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
-
+gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 def load_data(seqFile, labelFile, treeFile=''):
     sequences = np.array(pickle.load(open(seqFile, 'rb')))
@@ -111,57 +109,84 @@ def padMatrix(seqs, labels, treeseqs=''):
         return x, y
 
 
-class ScaledDotProductAttention(keras.layers.Layer):
-    def __init__(self, output_dim, **kwargs):
-        # inputs.shape = (batch_size, time_steps, seq_len)
-        self.output_dim = output_dim
-        super(ScaledDotProductAttention, self).__init__(**kwargs)
+def calculate_dimSize(seqFile):
+    seqs = pickle.load(open(seqFile, 'rb'))
+    codeSet = set()
+    for patient in seqs:
+        for visit in patient:
+            for code in visit:
+                codeSet.add(code)
+    return max(codeSet) + 1
 
-    def build(self, input_shape):
-        # 为该层创建一个可训练的权重
-        # inputs.shape = (batch_size, time_steps, seq_len)
-        self.kernel = self.add_weight(name='kernel',
-                                      shape=(2, input_shape[0][2], self.output_dim),
-                                      initializer='uniform',
-                                      trainable=True)
-        self.W = self.add_weight(name='W',
-                                 shape=(input_shape[1][2], self.output_dim),
-                                 initializer='uniform',
-                                 trainable=True)
 
-        super(ScaledDotProductAttention, self).build(input_shape)  # 一定要在最后调用它
+# 为评估函数准备标签序列，从原始序列第二个元素开始
+def process_label(labelSeqs):
+    newlabelSeq = []
+    for i in range(len(labelSeqs)):
+        newlabelSeq.append(labelSeqs[i][1:])
+    return newlabelSeq
 
+
+class KAMEAttention(keras.Model):
+    def __init__(self, units):
+        super(KAMEAttention, self).__init__()
+        self.W1 = keras.layers.Dense(units)
+        # self.W2 = keras.layers.Dense(units)
+        # self.V = keras.layers.Dense(1)
+
+    # tree_onehot, rnn_ht
     def call(self, inputs):
         Lt, rnn_ht = inputs
-        WQ = K.dot(rnn_ht, self.W)
-        WK = K.dot(Lt, self.kernel[0])
-        WV = K.dot(Lt, self.kernel[1])
-        # WQ.shape (None, 41, 128)
-        # print("WQ.shape", WQ.shape)
-        # 转置 K.permute_dimensions(WK, [0, 2, 1]).shape (None, 128, 41)
-        # print("K.permute_dimensions(WK, [0, 2, 1]).shape", K.permute_dimensions(WK, [0, 2, 1]).shape)
+        # Lt.shape:(batch_size, length, size, units)=>(5250,41,84,128)
+        # rnn_ht.shape:(batch_size, length, units) =>(5250,41,128)
 
-        QK = K.batch_dot(WQ, K.permute_dimensions(WK, [0, 2, 1]))
+        # ht.shape:(batch_size, length, size, units)=>(5250,41,1,128)
+        ht = tf.expand_dims(rnn_ht, 2)
+        Lt = self.W1(Lt)
+        # score.shape:(batch_size, length, size, 1)
+        score = tf.multiply(ht, Lt)
 
-        QK = QK / (64 ** 0.5)
+        # (Alpha)attention_weights.shape:(batch_size, length, size, 1)
+        attention_weights = tf.nn.softmax(score, axis=2)
 
-        weights = K.softmax(QK)
-        # QK.shape (None, 41, 41)
-        # print("QK.shape", weights.shape)
+        # context_vector.shape: (batch_size, length, size, units)
+        # tensorflow自己做扩展，把Alpha的1扩展为units
+        context_vector = attention_weights * Lt
 
-        context_vector = K.batch_dot(weights, WV)
+        # 在size维度求和，context_vector.shape:(batch_size, length, units)
+        context_vector = tf.reduce_sum(context_vector, axis=2)
 
-        return context_vector, weights
+        return context_vector
 
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], input_shape[1], self.output_dim)
 
-    def get_config(self):
-        config = super().get_config().copy()
-        config.update({
-            'output_dim': self.output_dim,
-        })
-        return config
+def kame_knowledgematrix(treeseq_set, emb):
+    # 和患者输入保持一致，访问为1到n-1
+    for i in range(len(treeseq_set)):
+        treeseq_set[i] = treeseq_set[i][:-1]
+
+    zerovec = np.zeros((84, 728)).astype(np.float32)
+    ts = []
+    for i in treeseq_set:
+        count = 0
+        a = []
+        for j in i:
+            # 变为onehot
+            temp = keras.utils.to_categorical(j)
+            if len(temp) < 84:
+                zerovec1 = np.zeros((84-len(temp), 728)).astype(np.float32)
+                temp = np.r_[temp, zerovec1]
+            count += 1
+            a.append(temp)
+        while count < 41:
+            a.append(zerovec)
+            count += 1
+        ts.append(a)
+
+    for i in range(len(ts)):
+        for j in range(len(ts[i])):
+            ts[i][j] = np.matmul(ts[i][j], emb)
+
+    return np.array(ts)
 
 
 def visit_level_precision(y_true, y_pred, rank=[5]):
@@ -189,12 +214,6 @@ def code_level_accuracy(y_true, y_pred, rank=[5]):
             recall.append(thisOne)
     return (np.array(recall)).mean(axis=0).tolist()
 
-# 为评估函数准备标签序列，从原始序列第二个元素开始
-def process_label(labelSeqs):
-    newlabelSeq = []
-    for i in range(len(labelSeqs)):
-        newlabelSeq.append(labelSeqs[i][1:])
-    return newlabelSeq
 
 # 按从大到小取预测值中前30个ccs分组号
 def convert2preds(preds):
@@ -212,7 +231,7 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        # self.path = 'G:\\模型训练保存\\ourmodel_' + str(gru_dimentions) + '_dropout\\rate05_02\\'
+        # self.path = 'G:\\模型训练保存\\KAME_' + str(gru_dimentions) + '_dropout\\rate05\\'
         # self.fileName = 'model_metrics.txt'
 
     def on_epoch_end(self, epoch, logs={}):
@@ -245,50 +264,81 @@ def print2file(buf, dirs, fileName):
 
 if __name__ == '__main__':
     seqFile = '../resource/mimic3.seqs'
-    knowledgeFile = '../resource/mimic3_newTree.seqs'
     labelFile = '../resource/mimic3.allLabels'
-    gcn_emb = pickle.load(open('../resource/gcn_emb_onehot.emb', 'rb'))
+    treeFile = '../resource/mimic3_newTree.seqs'
 
-    # node2vec Embedding
-    # diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
-    # knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
+    glovePatientFile = './resource/embedding/gram_128.npy'
+    gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
+    gramembFile = './resource/embedding/gram_emb_final.npy'
 
-    # gcn Embedding
-    diagcode_emb = gcn_emb[0][:4880]
-    knowledge_emb = gcn_emb[0][4880:]
+    # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
+    # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
+    # types = pickle.load(open('./resource/build_trees.types', 'rb'))
+    # retype = dict([(v, k) for k, v in types.items()])
 
-    train_set, valid_set, test_set = load_data(seqFile, labelFile, knowledgeFile)
-    x, y, tree = padMatrix(train_set[0], train_set[1],train_set[2])
-    x_valid, y_valid, tree_valid = padMatrix(valid_set[0], valid_set[1], valid_set[2])
-    x_test, y_test, tree_test = padMatrix(test_set[0], test_set[1], test_set[2])
+    glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
+    glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
+    gram_emb = np.load(gramembFile).astype(np.float32)
 
-    model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
-    mask = keras.layers.Masking(mask_value=0)(model_input)
-    emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb), name='emb')(mask)
-    rnn = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
-    head1 = keras.layers.Attention()([rnn, rnn])
-    # head2 = keras.layers.Attention()([rnn, rnn])
-    # head1 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head1)
-    # head2 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head2)
-    # head1 = keras.layers.Attention()([head1, head1])
-    # head2 = keras.layers.Attention()([head2, head2])
-    # rnn_self = keras.layers.concatenate([head1, head2], axis=-1)
+    # 测试tree的序列
+    # tree_seq = pickle.load(open(treeFile, 'rb'))
 
-    tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
-    tree_mask = keras.layers.Masking(mask_value=0)(tree_input)
-    tree_emb = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(knowledge_emb),
-                                    trainable=True, name='tree_emb')(tree_mask)
-    context_vector, weights = ScaledDotProductAttention(output_dim=128)([tree_emb, head1])
-    st = keras.layers.concatenate([head1, context_vector], axis=-1)
-    model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(st)
+    train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
+    x, y, lengths = padMatrix(train_set[0], train_set[1])
+    x_valid, y_valid, valid_lengths = padMatrix(valid_set[0], valid_set[1])
+    x_test, y_test, test_lengths = padMatrix(test_set[0], test_set[1])
 
-    model = keras.models.Model(inputs=[model_input, tree_input], outputs=model_output)
+    # tree_train = np.zeros((len(train_set[2]), 41, 84, 128))
+    # tree_train = []
+    # for i in train_set[2]:
+    #     a = []
+    #     for j in i:
+    #         b = []
+    #         for k in j:
+    #             b.append(node2vec_emb[k])
+    #         a.append(b)
+    #     tree_train.append(a)
+
+    # KAME knowledge embedding
+    tree = kame_knowledgematrix(train_set[2], glove_knowledge_emb)
+    tree_valid = kame_knowledgematrix(valid_set[2], glove_knowledge_emb)
+    tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
+
+    # gram patient embedding
+    x = tf.matmul(x, tf.expand_dims(gram_emb, 0))
+    x_valid = tf.matmul(x_valid, tf.expand_dims(gram_emb, 0))
+    x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
+
+    # glove knowledge embedding
+    # tree = tf.matmul(tree, tf.expand_dims(glove_knowledge_emb, 0))
+    # tree_valid = tf.matmul(tree_valid, tf.expand_dims(glove_knowledge_emb, 0))
+    # tree_test = tf.matmul(tree_test, tf.expand_dims(glove_knowledge_emb, 0))
+
+
+
+    gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
+    mask = keras.layers.Masking(mask_value=0)(gru_input)
+    v = keras.layers.Activation('tanh')(mask)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
+
+    tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
+    mask1 = keras.layers.Masking(mask_value=0)(tree_input)
+    context_vector = KAMEAttention(units=gru_dimentions)([mask1, gru_out])
+    s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
+    main_output = keras.layers.Dense(283, activation='softmax', name='main_output')(s)
+
+    model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
+
     model.summary()
-    model.compile(optimizer='adam', loss='binary_crossentropy')
+    # checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    #     filepath='G:\\模型训练保存\\KAME_' + str(gru_dimentions) + '_dropout\\rate05\\model_{epoch:02d}', save_freq='epoch')
 
     callback_history = metricsHistory()
+    callback_lists = [callback_history]
+    model.compile(optimizer='adam', loss='binary_crossentropy')
+
     history = model.fit([x, tree], y,
-                        epochs=80,
-                        batch_size=100,
+                        epochs=train_epoch,
+                        batch_size=train_batch_size,
                         validation_data=([x_valid, tree_valid], y_valid),
-                        callbacks=[callback_history])
+                        callbacks=callback_lists)

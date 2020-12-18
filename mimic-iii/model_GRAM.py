@@ -11,7 +11,7 @@ from collections import OrderedDict
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 320
+gru_dimentions = 128
 # embDimSize = 128
 # attentionDimSize = 128
 
@@ -237,25 +237,26 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        self.path = 'G:\\模型训练保存\\GRAM_' + str(gru_dimentions) + '_dropout\\rate05\\'
-        self.fileName = 'model_metrics.txt'
+        # self.path = 'G:\\模型训练保存\\RNN_' + str(gru_dimentions) + '_dropout\\rate05\\'
+        # self.fileName = 'model_metrics.txt'
 
     def on_epoch_end(self, epoch, logs={}):
-        precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
-            model.predict([x_test, tree_test])))[0]
+        # precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
+        #     model.predict(x_test)))[0]
         recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
-            model.predict([x_test, tree_test])))[0]
-        self.Precision_5.append(precision5)
+            model.predict(x_test)))[0]
+        # self.Precision_5.append(precision5)
         self.Recall_5.append(recall5)
-        metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
-        print2file(metricsInfo, self.path, self.fileName)
+        # metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
+        metricsInfo = 'Epoch: %d, - Recall@5: %f' % (epoch + 1, recall5)
+        # print2file(metricsInfo, self.path, self.fileName)
         print(metricsInfo)
 
     def on_train_end(self, logs={}):
-        print('Recall@5为:',self.Recall_5,'\n')
-        print('Precision@5为:',self.Precision_5)
-        print2file('Recall@5:'+str(self.Recall_5), self.path, self.fileName)
-        print2file('Precision@5:'+str(self.Precision_5), self.path, self.fileName)
+        print('Recall@5为:', self.Recall_5,'\n')
+        print('Precision@5为:', self.Precision_5)
+        # print2file('Recall@5:'+str(self.Recall_5), self.path, self.fileName)
+        # print2file('Precision@5:'+str(self.Precision_5), self.path, self.fileName)
 
 
 def print2file(buf, dirs, fileName):
@@ -282,49 +283,19 @@ if __name__ == '__main__':
     seqFile = './resource/process_data/process.dataseqs'
     labelFile = './resource/process_data/process.labelseqs'
     treeFile = './resource/process_data/process_new.treeseqs'
-    # glovePatientFile = './resource/embedding/glove_patient_test.npy'
-    glovePatientFile = './resource/embedding/gram_128.npy'
-    gloveKnowledgeFile = './resource/embedding/glove_knowledge_test.npy'
-    node2vecFile = './resource/embedding/node2vec_test.npy'
-    node2vecPatientFile = './resource/embedding/node2vec_patient_test.npy'
-    # gramgloveFile = './resource/embedding/gram_glove_all.npy'
-
     gram_params = np.load('./resource/embedding/gram_128.33.npz')
-    # data_seqs = pickle.load(open('./resource/process_data/process.dataseqs', 'rb'))
-    # label_seqs = pickle.load(open('./resource/process_data/process.labelseqs', 'rb'))
-    # types = pickle.load(open('./resource/build_trees.types', 'rb'))
-    # retype = dict([(v, k) for k, v in types.items()])
 
-    glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
-    glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
-    node2vec_patient_emb = np.load(node2vecPatientFile).astype(np.float32)
-    node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    # gram_glove_emb = np.load(gramgloveFile).astype(np.float32)
+    # seqFile = './resource/mimic3_new/mimic3.seqs'
+    # labelFile = './resource/mimic3_new/mimic3.allLabels'
+    # treeFile = './resource/mimic3_new/mimic3_newTree.seqs'
+    # gram_params = np.load('./resource/mimic3_new/mimic3_gram.33.npz')
+
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x, y, tree, lengths = padMatrix1(train_set[0], train_set[1], train_set[2])
     x_valid, y_valid, tree_valid, valid_lengths = padMatrix1(valid_set[0], valid_set[1], valid_set[2])
     x_test, y_test, tree_test, test_lengths = padMatrix1(test_set[0], test_set[1], test_set[2])
 
-    # glove patient embedding
-    # x = tf.tanh(tf.matmul(x, tf.expand_dims(glove_patient_emb, 0)))
-    # x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(glove_patient_emb, 0)))
-    # x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(glove_patient_emb, 0)))
-
-    # node2vec patient embedding
-    # x = tf.tanh(tf.matmul(x, tf.expand_dims(node2vec_patient_emb, 0)))
-    # x_valid = tf.tanh(tf.matmul(x_valid, tf.expand_dims(node2vec_patient_emb, 0)))
-    # x_test = tf.tanh(tf.matmul(x_test, tf.expand_dims(node2vec_patient_emb, 0)))
-
-    # glove knowledge embedding
-    # tree = tf.matmul(tree, tf.expand_dims(glove_knowledge_emb, 0))
-    # tree_valid = tf.matmul(tree_valid, tf.expand_dims(glove_knowledge_emb, 0))
-    # tree_test = tf.matmul(tree_test, tf.expand_dims(glove_knowledge_emb, 0))
-
-    # node2vec knowledge embedding
-    # tree = tf.matmul(tree, tf.expand_dims(node2vec_emb, 0))
-    # tree_valid = tf.matmul(tree_valid, tf.expand_dims(node2vec_emb, 0))
-    # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
 
     leavesList = []
     ancestorsList = []
@@ -361,10 +332,8 @@ if __name__ == '__main__':
     ])
 
     model.summary()
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\模型训练保存\\GRAM_' + str(gru_dimentions) + '_dropout\\rate05\\model_{epoch:02d}', save_freq='epoch')
     callback_history = metricsHistory()
-    callback_lists = [callback_history, checkpoint]
+    callback_lists = [callback_history]
 
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
@@ -373,61 +342,3 @@ if __name__ == '__main__':
                         batch_size=100,
                         validation_data=(x_valid, y_valid),
                         callbacks=callback_lists)
-
-    # preds = model.predict(x_test, batch_size=100)
-    #
-    #
-    # def visit_level_precision(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
-    #     recall = list()
-    #     for i in range(len(y_true)):
-    #         for j in range(len(y_true[i])):
-    #             thisOne = list()
-    #             codes = y_true[i][j]
-    #             tops = y_pred[i][j]
-    #             for rk in rank:
-    #                 thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / min(rk, len(set(codes))))
-    #             recall.append(thisOne)
-    #     return (np.array(recall)).mean(axis=0).tolist()
-    #
-    #
-    # def codel_level_accuracy(y_true, y_pred, rank=[5, 10, 15, 20, 25, 30]):
-    #     recall = list()
-    #     for i in range(len(y_true)):
-    #         for j in range(len(y_true[i])):
-    #             thisOne = list()
-    #             codes = y_true[i][j]
-    #             tops = y_pred[i][j]
-    #             for rk in rank:
-    #                 thisOne.append(len(set(codes).intersection(set(tops[:rk]))) * 1.0 / len(set(codes)))
-    #             recall.append(thisOne)
-    #     return (np.array(recall)).mean(axis=0).tolist()
-    #
-    #
-    # # 按从大到小取预测值中前30个ccs分组号
-    # def convert2preds(preds):
-    #     ccs_preds = []
-    #     for i in range(len(preds)):
-    #         temp = []
-    #         for j in range(len(preds[i])):
-    #             temp.append(list(zip(*heapq.nlargest(30, enumerate(preds[i][j]), key=operator.itemgetter(1))))[0])
-    #         ccs_preds.append(temp)
-    #     return ccs_preds
-    #
-    # y_pred = convert2preds(preds)
-    # y_true = process_label(test_set[1])
-    # metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
-    # metrics_codel_level_accuracy = codel_level_accuracy(y_true, y_pred)
-    #
-    # print("Top-5 visit_level_precision为：", metrics_visit_level_precision[0])
-    # print("Top-10 visit_level_precision为：", metrics_visit_level_precision[1])
-    # print("Top-15 visit_level_precision为：", metrics_visit_level_precision[2])
-    # print("Top-20 visit_level_precision为：", metrics_visit_level_precision[3])
-    # print("Top-25 visit_level_precision为：", metrics_visit_level_precision[4])
-    # print("Top-30 visit_level_precision为：", metrics_visit_level_precision[5])
-    # print("---------------------------------------------------------")
-    # print("Top-5 codel_level_accuracy为：", metrics_codel_level_accuracy[0])
-    # print("Top-10 codel_level_accuracy为：", metrics_codel_level_accuracy[1])
-    # print("Top-15 codel_level_accuracy为：", metrics_codel_level_accuracy[2])
-    # print("Top-20 codel_level_accuracy为：", metrics_codel_level_accuracy[3])
-    # print("Top-25 codel_level_accuracy为：", metrics_codel_level_accuracy[4])
-    # print("Top-30 codel_level_accuracy为：", metrics_codel_level_accuracy[5])

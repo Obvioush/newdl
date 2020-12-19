@@ -16,7 +16,7 @@ codeCount = 6534  # icd9数
 labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 145
-train_epoch = 50
+train_epoch = 100
 train_batch_size = 100
 # embDimSize = 128
 # attentionDimSize = 128
@@ -272,7 +272,7 @@ def get_random_weight(dim1, dim2, left=-0.1, right=0.1):
 if __name__ == '__main__':
     seqFile = '../resource/mimic4.seqs'
     labelFile = '../resource/mimic4.allLabels'
-    gram_params = np.load('../resource/gram_emb/mimic4_gram.43.npz')
+    gram_params = np.load('../resource/gram_emb/mimic4_gram.80.npz')
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile)
     x, y = padMatrix(train_set[0], train_set[1])
@@ -299,7 +299,7 @@ if __name__ == '__main__':
         embList.append(tempEmb)
 
     emb = np.array(tf.concat(embList, axis=0), dtype='float32')
-    # np.save('../resource/gram_emb/gramemb_diagcode', emb)
+    np.save('../resource/gram_emb/gramemb_diagcode', emb)
 
     # x = np.matmul(x, np.expand_dims(emb, 0))
     # x_valid = np.matmul(x_valid, np.expand_dims(emb, 0))
@@ -309,13 +309,13 @@ if __name__ == '__main__':
         # 添加一个Masking层，这个层的input_shape=(timesteps, features)
         keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
         keras.layers.Dense(128, activation='tanh', kernel_initializer=keras.initializers.constant(emb)),
-        keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
+        keras.layers.GRU(gru_dimentions, return_sequences=True),
         keras.layers.Dense(labelCount, activation='softmax')
     ])
     model.summary()
 
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_model_save\\model_GRAM\\GRAM_new_' + str(gru_dimentions) + '\\GRAM_epoch_{epoch:02d}',
+        filepath='G:\\mimic4_small_model_save\\model_GRAM\\GRAM_new_' + str(gru_dimentions) + '\\GRAM_epoch_{epoch:02d}',
         monitor='val_loss',
         save_best_only=True,
         mode='auto')

@@ -9,7 +9,7 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 256
 codeCount = 4880  # icd9数
 labelCount = 272  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
@@ -249,16 +249,17 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Dense(128, activation='relu')(mask)
-    v = keras.layers.Dropout(rate=0.5)(v)
-    gru_out = keras.layers.Bidirectional(keras.layers.GRU(gru_dimentions, return_sequences=True,
-                                                        dropout=0.5))(v)
+    v = keras.layers.Dense(256, activation='relu', trainable=False,
+                           kernel_regularizer=keras.regularizers.l2(0.001))(mask)
+    gru_out = keras.layers.Bidirectional(keras.layers.GRU(gru_dimentions, return_sequences=True,dropout=0.5,
+                                                          kernel_regularizer=keras.regularizers.l2(0.001)))(v)
     # context_vector = BahdanauAttention(units=128)([gru_out, gru_out])
     context_vector = LocationbasedAttention()(gru_out)
     ht = keras.layers.concatenate([context_vector, gru_out], axis=-1)
-    ht = keras.layers.Dense(128, activation='tanh', use_bias=False, trainable=False)(ht)
-    # ht = keras.layers.Dropout(rate=0.5)(ht)
-    main_output = keras.layers.Dense(labelCount, activation='softmax')(ht)
+    ht = keras.layers.Dense(128, activation='tanh', use_bias=False, trainable=False,
+                            kernel_regularizer=keras.regularizers.l2(0.001))(ht)
+    main_output = keras.layers.Dense(labelCount, activation='softmax',
+                                     kernel_regularizer=keras.regularizers.l2(0.001))(ht)
 
     model = keras.models.Model(inputs=gru_input, outputs=main_output)
     model.summary()

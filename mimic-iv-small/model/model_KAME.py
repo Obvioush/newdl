@@ -15,8 +15,8 @@ codeCount = 6534  # icd9数
 labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 145
-train_epoch = 50
-train_batch_size = 100
+train_epoch = 100
+train_batch_size = 20
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -159,14 +159,14 @@ class KAMEAttention(keras.Model):
         return context_vector
 
 
-def kame_knowledgematrix(treeseqs):
+def kame_knowledgematrix(treeseq_set):
     # 和患者输入保持一致，访问为1到n-1
-    for i in range(len(treeseqs)):
-        treeseqs[i] = treeseqs[i][:-1]
+    for i in range(len(treeseq_set)):
+        treeseq_set[i] = treeseq_set[i][:-1]
 
     zerovec = np.zeros((87, 728), dtype=np.int8)
     ts = []
-    for i in treeseqs:
+    for i in treeseq_set:
         count = 0
         a = []
         for j in i:
@@ -182,19 +182,12 @@ def kame_knowledgematrix(treeseqs):
             count += 1
         ts.append(a)
 
+    ts = np.array(ts)
+    # for i in range(len(ts)):
+    #     for j in range(len(ts[i])):
+    #         ts[i][j] = np.matmul(ts[i][j], emb)
     return ts
-
-
-def treetonumpy(treeseqs):
-    n_samples = len(treeseqs)
-
-    tree = np.zeros((n_samples, timeStep, 87, treeCount), dtype=np.int8)
-    for idx, tseq in enumerate(treeseqs):
-        for tvec, subseq in zip(tree[idx, :, :, :], tseq[:-1]):
-            # tvec[subseq] = 1.
-            h1 = tvec
-            h2 = subseq
-    return tree
+    # return np.array(ts)
 
 
 def visit_level_precision(y_true, y_pred, rank=[5]):
@@ -239,7 +232,7 @@ def convert2preds(preds):
 #         super().__init__()
 #         self.Recall_5 = []
 #         self.Precision_5 = []
-#         self.path = 'G:\\mimic4_model_save\\model_KAME\\KAME_' + str(gru_dimentions)
+#         self.path = 'G:\\mimic4_small_model_save\\model_KAME\\KAME_' + str(gru_dimentions)
 #         # self.path = 'G:\\mimic4_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '_dropout02'
 #         self.fileName = 'model_metrics.txt'
 #         self.bestRecall = 0
@@ -300,10 +293,7 @@ if __name__ == '__main__':
 
     # KAME knowledge embedding
     tree = kame_knowledgematrix(train_set[2])
-    tree = tf.convert_to_tensor(tree)
-    # tree = treetonumpy(train_set[2])
-    # tree_valid = kame_knowledgematrix(valid_set[2])
-    # tree_valid = treetonumpy(tree_valid)
+    tree_valid = kame_knowledgematrix(valid_set[2])
     # tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
 
     # gram patient embedding
@@ -329,7 +319,7 @@ if __name__ == '__main__':
     model.summary()
 
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '\\KAME_epoch_{epoch:02d}',
+        filepath='G:\\mimic4_small_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '\\KAME_epoch_{epoch:02d}',
         monitor='val_loss',
         save_best_only=True,
         mode='auto')

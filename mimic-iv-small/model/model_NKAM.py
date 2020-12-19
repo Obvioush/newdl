@@ -244,8 +244,8 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        self.path = 'G:\\mimic4_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions)
-        # self.path = 'G:\\mimic4_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '_dropout02'
+        self.path = 'G:\\mimic4_small_model_save\\model_NKAM\\NKAM_new_' + str(gru_dimentions)
+        # self.path = 'G:\\mimic4_small_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '_dropout02'
         self.fileName = 'model_metrics.txt'
         self.bestRecall = 0
 
@@ -317,14 +317,14 @@ if __name__ == '__main__':
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '\\NKAM_epoch_{epoch:02d}',
-        monitor='val_loss',
-        save_best_only=True,
-        mode='auto')
+    # checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    #     filepath='G:\\mimic4_small_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '\\NKAM_epoch_{epoch:02d}',
+    #     monitor='val_loss',
+    #     save_best_only=True,
+    #     mode='auto')
 
-    # callback_history = metricsHistory()
-    callback_lists = [checkpoint]
+    callback_history = metricsHistory()
+    callback_lists = [callback_history]
     model.summary()
     model.compile(optimizer='adam', loss='binary_crossentropy')
 

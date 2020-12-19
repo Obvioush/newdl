@@ -229,7 +229,7 @@ if __name__ == '__main__':
     model.summary()
 
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-                    filepath='G:\\mimic4_model_save\\model_RNN\\RNN_' + str(gru_dimentions) + '\\RNN_epoch_{epoch:02d}',
+                    filepath='G:\\mimic4_small_model_save\\model_RNN\\RNN_' + str(gru_dimentions) + '\\RNN_epoch_{epoch:02d}',
                     monitor='val_loss',
                     save_best_only=True,
                     mode='auto')

@@ -8,8 +8,8 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-codeCount = 8259  # icd9数
-labelCount = 283  # 标签的类别数
+codeCount = 6534  # icd9数
+labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 145
 
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\mimic4_model_save\\model_Dipole\\Dipole_128\\Dipole_epoch_50')
 
     # GRAM模型
-    model = tf.keras.models.load_model('G:\\mimic4_model_save\\model_GRAM\\GRAM_new_128\\GRAM_epoch_48')
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_GRAM\\GRAM_new_128\\GRAM_epoch_20')
 
     # KAME模型
     # gram_emb = np.load(gramembFile).astype(np.float32)
@@ -226,13 +226,13 @@ if __name__ == '__main__':
     # gram_emb = np.load(gramembFile).astype(np.float32)
     # node2vec_emb = np.load(node2vecFile).astype(np.float32)
     # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    # model = tf.keras.models.load_model('G:\\mimic4_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_58')
+    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_50')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
-    preds = model.predict(x_test, batch_size=100)
+    # preds = model.predict(x_test, batch_size=100)
 
     # KAME、NKAM模型的预测
-    # preds = model.predict([x_test, tree_test], batch_size=100)
+    preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)
     y_true = process_label(test_set[1])

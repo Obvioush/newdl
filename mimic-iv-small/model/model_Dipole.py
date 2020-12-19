@@ -255,7 +255,7 @@ if __name__ == '__main__':
     # context_vector = BahdanauAttention(units=128)([gru_out, gru_out])
     context_vector = LocationbasedAttention()(gru_out)
     ht = keras.layers.concatenate([context_vector, gru_out], axis=-1)
-    ht = keras.layers.Dense(128, activation='tanh', use_bias=False, trainable=False)(ht)
+    ht = keras.layers.Dense(128, activation='tanh', use_bias=False)(ht)
     ht = keras.layers.Dropout(rate=0.5)(ht)
     main_output = keras.layers.Dense(labelCount, activation='softmax')(ht)
 
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     model.summary()
 
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_model_save\\model_Dipole\\Dipole_' + str(gru_dimentions) + '\\Dipole_epoch_{epoch:02d}',
+        filepath='G:\\mimic4_small_model_save\\model_Dipole\\Dipole_' + str(gru_dimentions) + '\\Dipole_epoch_{epoch:02d}',
         monitor='val_loss',
         save_best_only=True,
         mode='auto')

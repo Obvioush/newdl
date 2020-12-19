@@ -36,15 +36,15 @@ if __name__ == '__main__':
     # avg_label_ccs = np.sum(lengths_label) / label_visits
     # max_label_ccs = np.max(lengths_label)
     #
-    # # tree seq
-    # tree_lengths = np.array([len(seq) for seq in trees])
-    # tree_samples = len(trees)
-    # tree_visits = np.sum(tree_lengths)
-    #
-    # lengths_tree = []
-    # for patient in trees:
-    #     for visit in patient:
-    #         lengths_tree.append(len(visit))
-    #
-    # avg_tree_ccs = np.sum(lengths_tree) / tree_visits
-    # max_tree_ccs = np.max(lengths_tree)
+    # tree seq
+    tree_lengths = np.array([len(seq) for seq in trees])
+    tree_samples = len(trees)
+    tree_visits = np.sum(tree_lengths)
+
+    lengths_tree = []
+    for patient in trees:
+        for visit in patient:
+            lengths_tree.append(len(visit))
+
+    avg_tree_ccs = np.sum(lengths_tree) / tree_visits
+    max_tree_ccs = np.max(lengths_tree)

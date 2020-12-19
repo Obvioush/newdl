@@ -161,34 +161,32 @@ def convert2preds(preds):
     return ccs_preds
 
 
-def kame_knowledgematrix(treeseq_set, emb):
+def kame_knowledgematrix(treeseq_set):
     # 和患者输入保持一致，访问为1到n-1
     for i in range(len(treeseq_set)):
         treeseq_set[i] = treeseq_set[i][:-1]
 
-    zerovec = np.zeros((84, 728)).astype(np.float32)
+    zerovec = np.zeros((87, 728), dtype=np.int8)
     ts = []
     for i in treeseq_set:
         count = 0
         a = []
         for j in i:
             # 变为onehot
-            temp = keras.utils.to_categorical(j)
-            if len(temp) < 84:
-                zerovec1 = np.zeros((84-len(temp), 728)).astype(np.float32)
+            temp = keras.utils.to_categorical(j, dtype=np.int8)
+            if len(temp) < 87:
+                zerovec1 = np.zeros((87-len(temp), 728), dtype=np.int8)
                 temp = np.r_[temp, zerovec1]
             count += 1
             a.append(temp)
-        while count < 41:
+        while count < timeStep:
             a.append(zerovec)
             count += 1
         ts.append(a)
 
-    for i in range(len(ts)):
-        for j in range(len(ts[i])):
-            ts[i][j] = np.matmul(ts[i][j], emb)
+    ts = np.array(ts)
+    return ts
 
-    return np.array(ts)
 
 
 if __name__ == '__main__':
@@ -218,15 +216,15 @@ if __name__ == '__main__':
     # KAME模型
     # gram_emb = np.load(gramembFile).astype(np.float32)
     # glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
-    # tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
+    tree_test = kame_knowledgematrix(test_set[2])
     # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
-    # model = tf.keras.models.load_model('G:\\模型训练保存\\KAME_128_dropout\\rate05\\model_48')
+    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_KAME\\KAME_128\\KAME_epoch_25')
 
     # 我们的模型NKAM
     # gram_emb = np.load(gramembFile).astype(np.float32)
     # node2vec_emb = np.load(node2vecFile).astype(np.float32)
     # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_50')
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_50')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
     # preds = model.predict(x_test, batch_size=100)

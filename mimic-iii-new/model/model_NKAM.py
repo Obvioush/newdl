@@ -19,7 +19,7 @@ treeCount = 728  # 分类树的祖先节点数量
 timeStep = 41
 train_epoch = 100
 train_batch_size = 100
-EMB_SIZE = 250
+EMB_SIZE = 128
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -245,8 +245,8 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_embsize_' + str(EMB_SIZE)
-        # self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '_dropout08'
+        # self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_newembsize_' + str(EMB_SIZE)
+        self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_new_' + str(gru_dimentions)
         self.fileName = 'model_metrics.txt'
         self.bestRecall = 0
 
@@ -263,9 +263,9 @@ class metricsHistory(Callback):
         metricsInfo = 'Epoch: %d, - Recall@5: %f, - best recall@5: %f' % (epoch + 1, recall5, self.bestRecall)
         # if self.bestRecall < recall5:
         #     self.bestRecall = recall5
-        #     if not os.path.exists(self.path):
-        #         os.makedirs(self.path)
-        #     tf.keras.models.save_model(model, self.path+'\\NKAM_epoch_' + str((epoch+1)))
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        tf.keras.models.save_model(model, self.path+'\\NKAM_epoch_' + str((epoch+1)))
 
         print2file(metricsInfo, self.path+'\\', self.fileName)
         print(metricsInfo)
@@ -293,13 +293,13 @@ if __name__ == '__main__':
     treeFile = '../resource/mimic3_newTree.seqs'
 
     # node2vec Embedding
-    node2vec_emb = np.load('../resource/node2vec_emb/mimic3_emb_'+str(EMB_SIZE)+'.npy')
-    diagcode_emb = node2vec_emb[:4880]
-    knowledge_emb = node2vec_emb[4880:]
+    # node2vec_emb = np.load('../resource/node2vec_emb/mimic3_emb_'+str(EMB_SIZE)+'.npy')
+    # diagcode_emb = node2vec_emb[:4880]
+    # knowledge_emb = node2vec_emb[4880:]
 
     # node2vec Embedding
-    # diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
-    # knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
+    diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
+    knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x, y, tree = padMatrix(train_set[0], train_set[1], train_set[2])

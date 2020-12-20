@@ -218,7 +218,7 @@ if __name__ == '__main__':
     # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_KAME\\KAME_128\\KAME_epoch_25')
 
     # 我们的模型NKAM
-    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_50')
+    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_90')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
     # preds = model.predict(x_test, batch_size=100)

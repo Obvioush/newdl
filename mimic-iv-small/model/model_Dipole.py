@@ -14,7 +14,7 @@ codeCount = 6534  # icd9数
 labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 145
-train_epoch = 50
+train_epoch = 70
 train_batch_size = 100
 
 # gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
@@ -248,22 +248,22 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Dense(128, activation='relu')(mask)
-    v = keras.layers.Dropout(rate=0.5)(v)
+    v = keras.layers.Dense(128, activation='relu', trainable=False)(mask)
+    # v = keras.layers.Dropout(rate=0.5)(v)
     gru_out = keras.layers.Bidirectional(keras.layers.GRU(gru_dimentions, return_sequences=True,
                                                         dropout=0.5))(v)
     # context_vector = BahdanauAttention(units=128)([gru_out, gru_out])
     context_vector = LocationbasedAttention()(gru_out)
     ht = keras.layers.concatenate([context_vector, gru_out], axis=-1)
     ht = keras.layers.Dense(128, activation='tanh', use_bias=False)(ht)
-    ht = keras.layers.Dropout(rate=0.5)(ht)
+    # ht = keras.layers.Dropout(rate=0.5)(ht)
     main_output = keras.layers.Dense(labelCount, activation='softmax')(ht)
 
     model = keras.models.Model(inputs=gru_input, outputs=main_output)
     model.summary()
 
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_small_model_save\\model_Dipole\\Dipole_' + str(gru_dimentions) + '\\Dipole_epoch_{epoch:02d}',
+        filepath='G:\\mimic4_small_model_save\\model_Dipole\\Dipole_new_' + str(gru_dimentions) + '\\Dipole_epoch_{epoch:02d}',
         monitor='val_loss',
         save_best_only=True,
         mode='auto')

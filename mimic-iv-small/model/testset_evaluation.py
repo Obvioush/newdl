@@ -202,29 +202,23 @@ if __name__ == '__main__':
     x_test, y_test, tree_test = padMatrix(test_set[0], test_set[1], test_set[2])
 
     # RNN模型
-    # model = tf.keras.models.load_model('G:\\mimic4_model_save\\model_RNN\\RNN_128\\RNN_epoch_32')
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_RNN\\RNN_128\\RNN_epoch_40')
 
     # RNN+模型
-    # model = tf.keras.models.load_model('G:\\mimic4_model_save\\model_RNN+\\RNN+_128\\RNN+_epoch_29')
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_RNN+\\RNN+_128\\RNN+_epoch_38')
 
     # Dipole模型
-    # model = tf.keras.models.load_model('G:\\mimic4_model_save\\model_Dipole\\Dipole_128\\Dipole_epoch_50')
+    # model = tf.keras.models.load_model('G:\mimic4_small_model_save\model_Dipole\Dipole_new_128\Dipole_epoch_70')
 
     # GRAM模型
-    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_GRAM\\GRAM_new_128\\GRAM_epoch_20')
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_GRAM\\GRAM_128\\GRAM_epoch_53')
 
     # KAME模型
-    # gram_emb = np.load(gramembFile).astype(np.float32)
-    # glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
-    tree_test = kame_knowledgematrix(test_set[2])
-    # x_test = tf.matmul(x_test, tf.expand_dims(gram_emb, 0))
-    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_KAME\\KAME_128\\KAME_epoch_25')
+    # tree_test = kame_knowledgematrix(test_set[2])
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_KAME\\KAME_128\\KAME_epoch_25')
 
     # 我们的模型NKAM
-    # gram_emb = np.load(gramembFile).astype(np.float32)
-    # node2vec_emb = np.load(node2vecFile).astype(np.float32)
-    # tree_test = tf.matmul(tree_test, tf.expand_dims(node2vec_emb, 0))
-    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_50')
+    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_50')
 
     # RNN、RNN+、Dipole、GRAM模型的预测
     # preds = model.predict(x_test, batch_size=100)

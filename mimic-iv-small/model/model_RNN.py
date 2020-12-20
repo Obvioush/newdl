@@ -15,7 +15,7 @@ codeCount = 6534  # icd9数
 labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 145
-train_epoch = 50
+train_epoch = 70
 train_batch_size = 100
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')

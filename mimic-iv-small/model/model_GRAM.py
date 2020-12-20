@@ -299,7 +299,7 @@ if __name__ == '__main__':
         embList.append(tempEmb)
 
     emb = np.array(tf.concat(embList, axis=0), dtype='float32')
-    np.save('../resource/gram_emb/gramemb_diagcode', emb)
+    # np.save('../resource/gram_emb/gramemb_diagcode', emb)
 
     # x = np.matmul(x, np.expand_dims(emb, 0))
     # x_valid = np.matmul(x_valid, np.expand_dims(emb, 0))
@@ -309,19 +309,19 @@ if __name__ == '__main__':
         # 添加一个Masking层，这个层的input_shape=(timesteps, features)
         keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
         keras.layers.Dense(128, activation='tanh', kernel_initializer=keras.initializers.constant(emb)),
-        keras.layers.GRU(gru_dimentions, return_sequences=True),
+        keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
         keras.layers.Dense(labelCount, activation='softmax')
     ])
     model.summary()
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_small_model_save\\model_GRAM\\GRAM_new_' + str(gru_dimentions) + '\\GRAM_epoch_{epoch:02d}',
-        monitor='val_loss',
-        save_best_only=True,
-        mode='auto')
+    # checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    #     filepath='G:\\mimic4_small_model_save\\model_GRAM\\GRAM_new_' + str(gru_dimentions) + '\\GRAM_epoch_{epoch:02d}',
+    #     monitor='val_loss',
+    #     save_best_only=True,
+    #     mode='auto')
 
-    # callback_history = metricsHistory()
-    callback_lists = [checkpoint]
+    callback_history = metricsHistory()
+    callback_lists = [callback_history]
 
     model.compile(optimizer='adam', loss='binary_crossentropy')
 

@@ -19,7 +19,7 @@ treeCount = 728  # 分类树的祖先节点数量
 timeStep = 41
 train_epoch = 100
 train_batch_size = 100
-EMB_SIZE = 300
+EMB_SIZE = 250
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:

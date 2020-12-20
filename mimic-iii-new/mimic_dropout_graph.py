@@ -62,8 +62,8 @@ if __name__ == '__main__':
     group_labels = ['0', '10', '20', '30', '40', ' 50']  # x轴刻度的标识
     plt.xticks(x1, group_labels, fontsize=8)  # 默认字体大小为10
     plt.yticks(fontsize=8)
-    # plt.title("MIMIC-III", fontsize=8, y=-0.2)  # 默认字体大小为12
-    plt.xlabel("Epoch", fontsize=8)
+    # plt.title("(a)MIMIC-III数据集", fontsize=8, y=-0.2)  # 默认字体大小为12
+    plt.xlabel("迭代次数", fontsize=8)
     plt.ylabel("Recall@5", fontsize=8)
     plt.xlim(0, 51)  # 设置x轴的范围
     plt.ylim(0.15, 0.35)
@@ -90,8 +90,8 @@ if __name__ == '__main__':
     group_labels = ['0', '10', '20', '30', '40', ' 50']  # x轴刻度的标识
     plt.xticks(x1, group_labels, fontsize=8)  # 默认字体大小为10
     plt.yticks(fontsize=8)
-    # plt.title("MIMIC-III", fontsize=8, y=-0.2)  # 默认字体大小为12
-    plt.xlabel("Epoch", fontsize=8)
+    # plt.title("(b)MIMIC-IV数据集", fontsize=8, y=-0.2)  # 默认字体大小为12
+    plt.xlabel("迭代次数", fontsize=8)
     plt.ylabel("Recall@5", fontsize=8)
     plt.xlim(0, 51)  # 设置x轴的范围
     plt.ylim(0.3, 0.42)
@@ -102,5 +102,5 @@ if __name__ == '__main__':
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=8)  # 设置图例字体的大小和粗细
 
-    # plt.savefig('./filename.svg', format='svg')  # 建议保存为svg格式,再用在线转换工具转为矢量图emf后插入word中
+    plt.savefig('./mimic-dropout.svg', format='svg')  # 建议保存为svg格式,再用在线转换工具转为矢量图emf后插入word中
     plt.show()

@@ -6,7 +6,7 @@ import numpy as np
 embedding_index = {}
 emb_matrix = []
 
-with open('../resource/node2vec_emb/mimic3_node2vec_500.txt', encoding='UTF-8') as f:
+with open('../resource/node2vec_emb/mimic3_node2vec_250.txt', encoding='UTF-8') as f:
     f.readline()
     for line in f:
         tokens = line.split()
@@ -24,4 +24,4 @@ mimic3_emb = np.asarray(emb_matrix, dtype=np.float32)
 
 # np.save('../resource/node2vec_emb/diagcode_emb', diagcode_emb)
 # np.save('../resource/node2vec_emb/knowledge_emb', knowledge_emb)
-np.save('../resource/node2vec_emb/mimic3_emb_500', mimic3_emb)
+np.save('../resource/node2vec_emb/mimic3_emb_250', mimic3_emb)

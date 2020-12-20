@@ -12,13 +12,14 @@ import os
 
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
-gru_dimentions = 128
+gru_dimentions = 128  # 384  512  640
 codeCount = 4880  # icd9数
 labelCount = 272  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
 timeStep = 41
-train_epoch = 50
+train_epoch = 100
 train_batch_size = 100
+EMB_SIZE = 300
 
 gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in gpus:
@@ -244,8 +245,8 @@ class metricsHistory(Callback):
         super().__init__()
         self.Recall_5 = []
         self.Precision_5 = []
-        # self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions)
-        self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '_dropout08'
+        self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_embsize_' + str(EMB_SIZE)
+        # self.path = 'G:\\mimic3_model_save\\model_NKAM\\NKAM_' + str(gru_dimentions) + '_dropout08'
         self.fileName = 'model_metrics.txt'
         self.bestRecall = 0
 
@@ -255,9 +256,11 @@ class metricsHistory(Callback):
         recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
             model.predict([x_test, tree_test])))[0]
         # self.Precision_5.append(precision5)
-        self.Recall_5.append(recall5)
+        # self.Recall_5.append(recall5)
         # metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
-        metricsInfo = 'Epoch: %d, - Recall@5: %f' % (epoch + 1, recall5)
+        if self.bestRecall < recall5:
+            self.bestRecall = recall5
+        metricsInfo = 'Epoch: %d, - Recall@5: %f, - best recall@5: %f' % (epoch + 1, recall5, self.bestRecall)
         # if self.bestRecall < recall5:
         #     self.bestRecall = recall5
         #     if not os.path.exists(self.path):
@@ -268,9 +271,10 @@ class metricsHistory(Callback):
         print(metricsInfo)
 
     def on_train_end(self, logs={}):
-        print('Recall@5为:', self.Recall_5,'\n')
+        # print('Recall@5为:', self.Recall_5,'\n')
         # print('Precision@5为:', self.Precision_5)
-        print2file('Recall@5:'+str(self.Recall_5), self.path+'\\', self.fileName)
+        # print2file('Recall@5:'+str(self.Recall_5), self.path+'\\', self.fileName)
+        print2file('best recall@5:'+str(self.bestRecall), self.path+'\\', self.fileName)
         # print2file('Precision@5:'+str(self.Precision_5), self.path+'\\', self.fileName)
 
 
@@ -289,8 +293,13 @@ if __name__ == '__main__':
     treeFile = '../resource/mimic3_newTree.seqs'
 
     # node2vec Embedding
-    diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
-    knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
+    node2vec_emb = np.load('../resource/node2vec_emb/mimic3_emb_'+str(EMB_SIZE)+'.npy')
+    diagcode_emb = node2vec_emb[:4880]
+    knowledge_emb = node2vec_emb[4880:]
+
+    # node2vec Embedding
+    # diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
+    # knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x, y, tree = padMatrix(train_set[0], train_set[1], train_set[2])
@@ -299,12 +308,12 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb),name='diagcode_emb')(mask)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.8)(emb)
+    emb = keras.layers.Dense(EMB_SIZE, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb),name='diagcode_emb')(mask)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2]), name='tree_input')
     tree_mask = keras.layers.Masking(mask_value=0)(tree_input)
-    tree_emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(knowledge_emb),name='knowledge_emb')(tree_mask)
+    tree_emb = keras.layers.Dense(EMB_SIZE, activation='relu', kernel_initializer=keras.initializers.constant(knowledge_emb),name='knowledge_emb')(tree_mask)
 
     context_vector, weights = ScaledDotProductAttention(output_dim=128)([tree_emb, gru_out])
     st = keras.layers.concatenate([gru_out, context_vector], axis=-1)

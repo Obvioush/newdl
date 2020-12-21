@@ -40,7 +40,7 @@ if __name__ == '__main__':
     # 线型：-  --   -.  :    ,
     # marker：.  ,   o   v    <    *    +    1
 
-    plt.figure(figsize=(12, 5), dpi=600)
+    plt.figure(figsize=(10, 5))
     # plt.grid(linestyle="--")  # 设置背景网格线为虚线
     # ax = plt.gca()
     # ax.spines['top'].set_visible(False)  # 去掉上边框
@@ -91,8 +91,8 @@ if __name__ == '__main__':
     plt.xticks(x1, group_labels, fontsize=12)  # 默认字体大小为10
     plt.yticks(fontsize=12)
     # plt.title("(b)MIMIC-IV数据集", fontsize=8, y=-0.2)  # 默认字体大小为12
-    plt.xlabel("迭代次数", fontsize=12)
-    plt.ylabel("Recall@5", fontsize=12)
+    plt.xlabel("Iterations", fontsize=10)
+    plt.ylabel("Recall@5", fontsize=10)
     plt.xlim(0, 51)  # 设置x轴的范围
     plt.ylim(0.3, 0.42)
 

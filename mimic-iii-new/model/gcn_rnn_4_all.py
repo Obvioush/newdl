@@ -265,7 +265,7 @@ if __name__ == '__main__':
     model_input = keras.layers.Input((x.shape[1], x.shape[2]), name='model_input')
     mask = keras.layers.Masking(mask_value=0)(model_input)
     emb = keras.layers.Dense(128, activation='relu', kernel_initializer=keras.initializers.constant(diagcode_emb), name='emb')(mask)
-    rnn = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(emb)
+    rnn = keras.layers.Bidirectional(keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5))(emb)
     head1 = keras.layers.Attention()([rnn, rnn])
     # head2 = keras.layers.Attention()([rnn, rnn])
     # head1 = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(head1)
@@ -279,8 +279,8 @@ if __name__ == '__main__':
     tree_emb = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(knowledge_emb),
                                     trainable=True, name='tree_emb')(tree_mask)
     context_vector, weights = ScaledDotProductAttention(output_dim=128)([tree_emb, head1])
-    st = keras.layers.concatenate([head1, context_vector], axis=-1)
-    model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(st)
+    # st = keras.layers.concatenate([head1, context_vector], axis=-1)
+    model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(context_vector)
 
     model = keras.models.Model(inputs=[model_input, tree_input], outputs=model_output)
     model.summary()
@@ -288,7 +288,7 @@ if __name__ == '__main__':
 
     callback_history = metricsHistory()
     history = model.fit([x, tree], y,
-                        epochs=80,
+                        epochs=100,
                         batch_size=100,
                         validation_data=([x_valid, tree_valid], y_valid),
                         callbacks=[callback_history])

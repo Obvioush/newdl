@@ -1,10 +1,11 @@
 import numpy as np
 import _pickle as pickle
 
-seqFile = './resource/mimic3.seqs'
-labelFile = './resource/mimic3.labels'
+# seqFile = './resource/mimic3.seqs'
+seqFile = '/Users/masaka/Documents/CAMP-master/mimic4/processMIMIC/mimic.seqs'
+# labelFile = './resource/mimic3.labels'
 # typeFile = './resource/mimic3.types'
-# seqs = pickle.load(open(seqFile, 'rb'))
+seqs = pickle.load(open(seqFile, 'rb'))
 # types = pickle.load(open(typeFile, 'rb'))
 
 # seqs = np.array(pickle.load(open(seqFile, 'rb')))
@@ -15,5 +16,5 @@ labelFile = './resource/mimic3.labels'
 # print(n_samples)
 # print(maxlen)
 
-labels = np.array(pickle.load(open(labelFile, 'rb')))
+# labels = np.array(pickle.load(open(labelFile, 'rb')))
 # labels = np.expand_dims(labels, axis=1)

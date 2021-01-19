@@ -213,33 +213,34 @@ def print2file(buf, dirs, fileName):
 if __name__ == '__main__':
     seqFile = '../resource/mimic4.seqs'
     labelFile = '../resource/mimic4.allLabels'
-
-    train_set, valid_set, test_set = load_data(seqFile, labelFile)
-    x, y = padMatrix(train_set[0], train_set[1])
-    x_valid, y_valid = padMatrix(valid_set[0], valid_set[1])
-    x_test, y_test = padMatrix(test_set[0], test_set[1])
-
-    model = keras.models.Sequential([
-        # 添加一个Masking层，这个层的input_shape=(timesteps, features)
-        keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
-        keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
-        keras.layers.Dense(labelCount, activation='softmax')
-    ])
-
-    model.summary()
-
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(
-                    filepath='G:\\mimic4_small_model_save\\model_RNN\\RNN_' + str(gru_dimentions) + '\\RNN_epoch_{epoch:02d}',
-                    monitor='val_loss',
-                    save_best_only=True,
-                    mode='auto')
-
-    # callback_history = metricsHistory()
-    callback_lists = [checkpoint]
-    model.compile(optimizer='adam', loss='binary_crossentropy')
-
-    history = model.fit(x, y,
-                        epochs=train_epoch,
-                        batch_size=train_batch_size,
-                        validation_data=(x_valid, y_valid),
-                        callbacks=callback_lists)
+    sequences = np.array(pickle.load(open(seqFile, 'rb')))
+    labels = np.array(pickle.load(open(labelFile, 'rb')))
+    # train_set, valid_set, test_set = load_data(seqFile, labelFile)
+    # x, y = padMatrix(train_set[0], train_set[1])
+    # x_valid, y_valid = padMatrix(valid_set[0], valid_set[1])
+    # x_test, y_test = padMatrix(test_set[0], test_set[1])
+    #
+    # model = keras.models.Sequential([
+    #     # 添加一个Masking层，这个层的input_shape=(timesteps, features)
+    #     keras.layers.Masking(mask_value=0, input_shape=(x.shape[1], x.shape[2])),
+    #     keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5),
+    #     keras.layers.Dense(labelCount, activation='softmax')
+    # ])
+    #
+    # model.summary()
+    #
+    # checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    #                 filepath='G:\\mimic4_small_model_save\\model_RNN\\RNN_' + str(gru_dimentions) + '\\RNN_epoch_{epoch:02d}',
+    #                 monitor='val_loss',
+    #                 save_best_only=True,
+    #                 mode='auto')
+    #
+    # # callback_history = metricsHistory()
+    # callback_lists = [checkpoint]
+    # model.compile(optimizer='adam', loss='binary_crossentropy')
+    #
+    # history = model.fit(x, y,
+    #                     epochs=train_epoch,
+    #                     batch_size=train_batch_size,
+    #                     validation_data=(x_valid, y_valid),
+    #                     callbacks=callback_lists)

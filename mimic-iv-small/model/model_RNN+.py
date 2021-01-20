@@ -242,7 +242,8 @@ class metricsHistory(Callback):
 if __name__ == '__main__':
     # seqFile = '../resource/mimic4.seqs'
     seqFile = '../mimic.seqs'
-    labelFile = '../resource/mimic4.allLabels'
+    # labelFile = '../resource/mimic4.allLabels'
+    labelFile = '../mimic.seqs'
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile)
     x, y = padMatrix(train_set[0], train_set[1])
@@ -251,6 +252,7 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
+    # mask = keras.layers.Dense(gru_dimentions)(mask)
     gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(mask)
     context_vector = LocationbasedAttention()(gru_out)
 

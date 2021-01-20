@@ -34,12 +34,12 @@ if __name__ == '__main__':
         ref[icd9] = multiccs
     infd.close()
 
-    # types中0-8258为icd9编码
+    # types中0-6534为icd9编码
     category = {}
-    for i in range(8259):
+    for i in range(6534):
         category[i] = ref[retype[i]]
 
-    for i in range(8259, len(types)):
+    for i in range(6534, len(types)):
         category[i] = convert_num(retype[i])
 
     c1 = []

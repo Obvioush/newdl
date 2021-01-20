@@ -1,8 +1,8 @@
 import numpy as np
 import _pickle as pickle
 
-seqFile = './resource/mimic4.seqs'
-# seqFile = './mimic.seqs'
+# seqFile = './resource/mimic4.seqs'
+seqFile = './mimic.seqs'
 # labelFile = './resource/mimic3.labels'
 # typeFile = './resource/mimic3.types'
 seqs = pickle.load(open(seqFile, 'rb'))

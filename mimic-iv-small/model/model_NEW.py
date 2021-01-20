@@ -13,10 +13,10 @@ from utils import *
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
-codeCount = 4880  # icd9数
-labelCount = 272  # 标签的类别数
+codeCount = 6534  # icd9数
+labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
-timeStep = 41
+timeStep = 145
 
 
 # gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
@@ -254,8 +254,8 @@ if __name__ == '__main__':
     # knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
 
     # gcn Embedding
-    diagcode_emb = gcn_emb[0][:4880]
-    knowledge_emb = gcn_emb[0][4880:]
+    diagcode_emb = gcn_emb[0][:codeCount]
+    knowledge_emb = gcn_emb[0][codeCount:]
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, knowledgeFile)
     x, y, tree = padMatrix(train_set[0], train_set[1],train_set[2])

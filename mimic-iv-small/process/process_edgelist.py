@@ -29,7 +29,7 @@ def tree_levelall():
 
 
 if __name__ == '__main__':
-
+    outFile = '../resource/mimic4'
     types = pickle.load(open('../resource/mimic4.types', 'rb'))
     retype = dict([(v, k) for k, v in types.items()])
 
@@ -85,21 +85,21 @@ if __name__ == '__main__':
     src_ids.extend(srcc)
     dst_ids.extend(dstt)
 
-    # g = dgl.graph((src_ids, dst_ids))
-    # # 有向图转为无向图
-    # bg = dgl.to_bidirected(g)
-    # # print(g)
-    #
-    # # bbg = dgl.add_self_loop(bg)
-    # # pickle.dump(bbg, open(outFile + '.graph', 'wb'), -1)
-    # # nx.draw_networkx(g)
-    # # visual(bg)
-    #
-    # nx_G = bg.to_networkx().to_undirected()
-    # N = len(nx_G)
-    # adj = nx.to_numpy_array(nx_G)
-    # adj = sp.coo_matrix(adj)
-    # pickle.dump(adj, open(outFile + '.adj', 'wb'), -1)
+    g = dgl.graph((src_ids, dst_ids))
+    # 有向图转为无向图
+    bg = dgl.to_bidirected(g)
+    # print(g)
+
+    # bbg = dgl.add_self_loop(bg)
+    # pickle.dump(bbg, open(outFile + '.graph', 'wb'), -1)
+    # nx.draw_networkx(g)
+    # visual(bg)
+
+    nx_G = bg.to_networkx().to_undirected()
+    N = len(nx_G)
+    adj = nx.to_numpy_array(nx_G)
+    adj = sp.coo_matrix(adj)
+    pickle.dump(adj, open(outFile + '.adj', 'wb'), -1)
 
 
     # # 制作node2vec识别的edgelist

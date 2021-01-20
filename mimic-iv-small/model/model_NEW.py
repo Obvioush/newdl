@@ -247,7 +247,7 @@ if __name__ == '__main__':
     seqFile = '../resource/mimic4.seqs'
     knowledgeFile = '../resource/mimic4_newTree.seqs'
     labelFile = '../resource/mimic4.allLabels'
-    gcn_emb = pickle.load(open('../resource/gcn_emb_onehot.emb', 'rb'))
+    gcn_emb = pickle.load(open('../resource/gcn_emb/gcn_emb_onehot.emb', 'rb'))
 
     # node2vec Embedding
     # diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')

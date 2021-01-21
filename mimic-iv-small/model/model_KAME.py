@@ -227,49 +227,49 @@ def convert2preds(preds):
     return ccs_preds
 
 
-# class metricsHistory(Callback):
-#     def __init__(self):
-#         super().__init__()
-#         self.Recall_5 = []
-#         self.Precision_5 = []
-#         self.path = 'G:\\mimic4_small_model_save\\model_KAME\\KAME_' + str(gru_dimentions)
-#         # self.path = 'G:\\mimic4_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '_dropout02'
-#         self.fileName = 'model_metrics.txt'
-#         self.bestRecall = 0
-#
-#     def on_epoch_end(self, epoch, logs={}):
-#         precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
-#             model.predict([x_test, tree_test])))[0]
-#         recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
-#             model.predict([x_test, tree_test])))[0]
-#         self.Precision_5.append(precision5)
-#         self.Recall_5.append(recall5)
-#         # metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
-#         metricsInfo = 'Epoch: %d, - Recall@5: %f' % (epoch + 1, recall5)
-#         if self.bestRecall < recall5:
-#             self.bestRecall = recall5
-#             if not os.path.exists(self.path):
-#                 os.makedirs(self.path)
-#             # model.save(self.path+'\\NKAM.' + str((epoch+1)) + '.h5')
-#             tf.keras.models.save_model(model, self.path+'\\KAME_epoch_' + str((epoch+1)))
-#
-#         print2file(metricsInfo, self.path+'\\', self.fileName)
-#         print(metricsInfo)
-#
-#     def on_train_end(self, logs={}):
-#         print('Recall@5为:', self.Recall_5,'\n')
-#         print('Precision@5为:', self.Precision_5)
-#         print2file('Recall@5:'+str(self.Recall_5), self.path+'\\', self.fileName)
-#         print2file('Precision@5:'+str(self.Precision_5), self.path+'\\', self.fileName)
+class metricsHistory(Callback):
+    def __init__(self):
+        super().__init__()
+        self.Recall_5 = []
+        self.Precision_5 = []
+        # self.path = 'G:\\mimic4_small_model_save\\model_KAME\\KAME_' + str(gru_dimentions)
+        # self.path = 'G:\\mimic4_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '_dropout02'
+        # self.fileName = 'model_metrics.txt'
+        self.bestRecall = 0
+
+    def on_epoch_end(self, epoch, logs={}):
+        # precision5 = visit_level_precision(process_label(test_set[1]), convert2preds(
+        #     model.predict([x_test, tree_test])))[0]
+        recall5 = code_level_accuracy(process_label(test_set[1]),convert2preds(
+            model.predict([x_test, tree_test])))[0]
+        # self.Precision_5.append(precision5)
+        self.Recall_5.append(recall5)
+        # metricsInfo = 'Epoch: %d, - Recall@5: %f, - Precision@5: %f' % (epoch+1, recall5, precision5)
+        metricsInfo = 'Epoch: %d, - Recall@5: %f' % (epoch + 1, recall5)
+        # if self.bestRecall < recall5:
+        #     self.bestRecall = recall5
+        #     if not os.path.exists(self.path):
+        #         os.makedirs(self.path)
+        #     # model.save(self.path+'\\NKAM.' + str((epoch+1)) + '.h5')
+        #     tf.keras.models.save_model(model, self.path+'\\KAME_epoch_' + str((epoch+1)))
+
+        # print2file(metricsInfo, self.path+'\\', self.fileName)
+        print(metricsInfo)
+
+    def on_train_end(self, logs={}):
+        print('Recall@5为:', self.Recall_5,'\n')
+        print('Precision@5为:', self.Precision_5)
+        # print2file('Recall@5:'+str(self.Recall_5), self.path+'\\', self.fileName)
+        # print2file('Precision@5:'+str(self.Precision_5), self.path+'\\', self.fileName)
 
 
-def print2file(buf, dirs, fileName):
-    if not os.path.exists(dirs):
-        os.makedirs(dirs)
-    outFile = dirs + fileName
-    outfd = open(outFile, 'a')
-    outfd.write(buf + '\n')
-    outfd.close()
+# def print2file(buf, dirs, fileName):
+#     if not os.path.exists(dirs):
+#         os.makedirs(dirs)
+#     outFile = dirs + fileName
+#     outfd = open(outFile, 'a')
+#     outfd.write(buf + '\n')
+#     outfd.close()
 
 
 if __name__ == '__main__':
@@ -278,10 +278,12 @@ if __name__ == '__main__':
     treeFile = '../resource/mimic4_newTree.seqs'
 
     gloveKnowledgeFile = '../resource/gram_emb/mimic4_glove_knowledge_emb.npy'
-    gramembFile = '../resource/gram_emb/gramemb_diagcode.npy'
+    # gramembFile = '../resource/gram_emb/gramemb_diagcode.npy'
+    glovePatientFile = '../resource/gram_emb/mimic4_glove_patient_emb.npy'
 
     glove_knowledge_emb = np.load(gloveKnowledgeFile).astype(np.float32)
-    gram_emb = np.load(gramembFile).astype(np.float32)
+    glove_patient_emb = np.load(glovePatientFile).astype(np.float32)
+    # gram_emb = np.load(gramembFile).astype(np.float32)
 
     # 测试tree的序列
     # tree_seq = pickle.load(open(treeFile, 'rb'))
@@ -294,7 +296,7 @@ if __name__ == '__main__':
     # KAME knowledge embedding
     tree = kame_knowledgematrix(train_set[2])
     tree_valid = kame_knowledgematrix(valid_set[2])
-    # tree_test = kame_knowledgematrix(test_set[2], glove_knowledge_emb)
+    tree_test = kame_knowledgematrix(test_set[2])
 
     # gram patient embedding
     # x = tf.matmul(x, tf.expand_dims(gram_emb, 0))
@@ -304,28 +306,30 @@ if __name__ == '__main__':
 
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
-    v = keras.layers.Dense(128, activation='tanh', kernel_initializer=keras.initializers.constant(gram_emb))(mask)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
+    v = keras.layers.Dense(128, activation='tanh', kernel_initializer=keras.initializers.constant(glove_patient_emb))(mask)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True)(v)
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
     tree_emb = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(glove_knowledge_emb))(mask1)
     context_vector = KAMEAttention(units=gru_dimentions)([tree_emb, gru_out])
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
-    main_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(s)
+    dropout = keras.layers.Dropout(s)
+    main_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(dropout)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 
     model.summary()
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic4_small_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '\\KAME_epoch_{epoch:02d}',
-        monitor='val_loss',
-        save_best_only=True,
-        mode='auto')
+    # checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    #     filepath='G:\\mimic4_small_model_save\\model_KAME\\KAME_' + str(gru_dimentions) + '\\KAME_epoch_{epoch:02d}',
+    #     monitor='val_loss',
+    #     save_best_only=True,
+    #     mode='auto')
 
-    # callback_history = metricsHistory()
-    callback_lists = [checkpoint]
+    callback_history = metricsHistory()
+    # callback_lists = [checkpoint]
+    callback_lists = [callback_history]
     model.compile(optimizer='adam', loss='binary_crossentropy')
 
     history = model.fit([x, tree], y,

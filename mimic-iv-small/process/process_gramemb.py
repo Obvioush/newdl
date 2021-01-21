@@ -18,8 +18,9 @@ if __name__ == '__main__':
 
     glove_emb = load_embedding('../resource/gram_emb/mimic4_glove.14.npz')
     glove_knowledge_emb = glove_emb[6534:]
+    glove_patient_emb = glove_emb[:6534]
     # np.save('../resource/gram_emb/mimic4_glove_knowledge_emb', glove_knowledge_emb)
-
+    # np.save('../resource/gram_emb/mimic4_glove_patient_emb', glove_patient_emb)
 
 
 

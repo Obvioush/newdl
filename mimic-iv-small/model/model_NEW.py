@@ -143,7 +143,7 @@ class ScaledDotProductAttention(keras.layers.Layer):
 
         QK = K.batch_dot(WQ, K.permute_dimensions(WK, [0, 2, 1]))
 
-        QK = QK / (64 ** 0.5)
+        QK = QK / (128 ** 0.5)
 
         weights = K.softmax(QK)
         # QK.shape (None, 41, 41)
@@ -285,9 +285,13 @@ if __name__ == '__main__':
 
     model = keras.models.Model(inputs=[model_input, tree_input], outputs=model_output)
     model.summary()
-    model.compile(optimizer='adam', loss='binary_crossentropy')
-
-    callback_history = metricsHistory()
+    model.compile(optimizer=keras.optimizers.Adam(lr=0.001, decay=0.001), loss='binary_crossentropy')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(
+        filepath='G:\\mimic4_small_model_save\\model_NEW\\NEW_' + str(gru_dimentions) + '\\NEW_epoch_{epoch:02d}',
+        monitor='val_loss',
+        save_best_only=True,
+        mode='auto')
+    callback_history = [checkpoint]
     history = model.fit([x, tree], y,
                         epochs=100,
                         batch_size=100,

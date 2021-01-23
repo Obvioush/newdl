@@ -307,15 +307,14 @@ if __name__ == '__main__':
     gru_input = keras.layers.Input((x.shape[1], x.shape[2]), name='gru_input')
     mask = keras.layers.Masking(mask_value=0)(gru_input)
     v = keras.layers.Dense(128, activation='tanh', kernel_initializer=keras.initializers.constant(glove_patient_emb))(mask)
-    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True)(v)
+    gru_out = keras.layers.GRU(gru_dimentions, return_sequences=True, dropout=0.5)(v)
 
     tree_input = keras.layers.Input((tree.shape[1], tree.shape[2], tree.shape[3]), name='tree_input')
     mask1 = keras.layers.Masking(mask_value=0)(tree_input)
     tree_emb = keras.layers.Dense(128, kernel_initializer=keras.initializers.constant(glove_knowledge_emb))(mask1)
     context_vector = KAMEAttention(units=gru_dimentions)([tree_emb, gru_out])
     s = keras.layers.concatenate([gru_out, context_vector], axis=-1)
-    dropout = keras.layers.Dropout(s)
-    main_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(dropout)
+    main_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(s)
 
     model = keras.models.Model(inputs=[gru_input, tree_input], outputs=main_output)
 

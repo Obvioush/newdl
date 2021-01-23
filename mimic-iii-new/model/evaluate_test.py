@@ -159,10 +159,11 @@ if __name__ == '__main__':
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x_test, y_test, tree_test = padMatrix(test_set[0], test_set[1], test_set[2])
 
-    model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM\\NKAM_new_128\\NKAM_epoch_57')
+    # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM\\NKAM_new_128\\NKAM_epoch_57')
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM_alpha\\NKAM_128\\NKAM_alpha_epoch_24')
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM_belta\\NKAM_128\\NKAM_belta_epoch_54')
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM_gamma\\NKAM_new_128\\NKAM_gamma_epoch_49')
+    model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NEW\\NEW_128\\NEW_epoch_98')
     preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)

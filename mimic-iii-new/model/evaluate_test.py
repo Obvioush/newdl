@@ -159,11 +159,25 @@ if __name__ == '__main__':
     train_set, valid_set, test_set = load_data(seqFile, labelFile, treeFile)
     x_test, y_test, tree_test = padMatrix(test_set[0], test_set[1], test_set[2])
 
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\emb_glove\\NEW_epoch_73'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\emb_no\\NEW_epoch_37'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_ka\\NEW_epoch_62'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_sa\\NEW_epoch_70'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_none\\NEW_epoch_26'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_1\\NEW_epoch_97'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_3\\NEW_epoch_80'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_4\\NEW_epoch_96'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_5\\NEW_epoch_96'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_6\\NEW_epoch_84'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_7\\NEW_epoch_75'
+    # filePath = 'G:\\mimic3_model_save\\model_GCSAM\\test_head\head_8\\NEW_epoch_72'
+
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM\\NKAM_new_128\\NKAM_epoch_57')
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM_alpha\\NKAM_128\\NKAM_alpha_epoch_24')
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM_belta\\NKAM_128\\NKAM_belta_epoch_54')
     # model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NKAM_gamma\\NKAM_new_128\\NKAM_gamma_epoch_49')
     model = tf.keras.models.load_model('G:\\mimic3_model_save\\model_NEW\\NEW_128\\NEW_epoch_98')
+    # model = tf.keras.models.load_model(filePath)
     preds = model.predict([x_test, tree_test], batch_size=100)
 
     y_pred = convert2preds(preds)
@@ -171,16 +185,16 @@ if __name__ == '__main__':
     metrics_visit_level_precision = visit_level_precision(y_true, y_pred)
     metrics_code_level_accuracy = code_level_accuracy(y_true, y_pred)
 
-    print("Top-5 precision为：", metrics_visit_level_precision[0])
-    print("Top-10 precision为：", metrics_visit_level_precision[1])
-    print("Top-15 precision为：", metrics_visit_level_precision[2])
-    print("Top-20 precision为：", metrics_visit_level_precision[3])
-    print("Top-25 precision为：", metrics_visit_level_precision[4])
-    print("Top-30 precision为：", metrics_visit_level_precision[5])
-    print("---------------------------------------------------------")
-    print("Top-5 Recall为：", metrics_code_level_accuracy[0])
-    print("Top-10 Recall为：", metrics_code_level_accuracy[1])
-    print("Top-15 Recall为：", metrics_code_level_accuracy[2])
-    print("Top-20 Recall为：", metrics_code_level_accuracy[3])
-    print("Top-25 Recall为：", metrics_code_level_accuracy[4])
-    print("Top-30 Recall为：", metrics_code_level_accuracy[5])
+    print("Top-5 visit-level precision为：", metrics_visit_level_precision[0])
+    print("Top-10 visit-level precision为：", metrics_visit_level_precision[1])
+    print("Top-15 visit-level precision为：", metrics_visit_level_precision[2])
+    print("Top-20 visit-level precision为：", metrics_visit_level_precision[3])
+    print("Top-25 visit-level precision为：", metrics_visit_level_precision[4])
+    print("Top-30 visit-level precision为：", metrics_visit_level_precision[5])
+    print("-------------------------------------------------------------------------")
+    print("Top-5 code-level accuracy为：", metrics_code_level_accuracy[0])
+    print("Top-10 code-level accuracy为：", metrics_code_level_accuracy[1])
+    print("Top-15 code-level accuracy为：", metrics_code_level_accuracy[2])
+    print("Top-20 code-level accuracy为：", metrics_code_level_accuracy[3])
+    print("Top-25 code-level accuracy为：", metrics_code_level_accuracy[4])
+    print("Top-30 code-level accuracy为：", metrics_code_level_accuracy[5])

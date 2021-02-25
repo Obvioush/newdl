@@ -13,10 +13,10 @@ from utils import *
 _TEST_RATIO = 0.15
 _VALIDATION_RATIO = 0.1
 gru_dimentions = 128
-codeCount = 4880  # icd9数
-labelCount = 272  # 标签的类别数
+codeCount = 6534  # icd9数
+labelCount = 277  # 标签的类别数
 treeCount = 728  # 分类树的祖先节点数量
-timeStep = 41
+timeStep = 145
 
 
 # gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
@@ -244,18 +244,14 @@ def print2file(buf, dirs, fileName):
 
 
 if __name__ == '__main__':
-    seqFile = '../resource/mimic3.seqs'
-    knowledgeFile = '../resource/mimic3_newTree.seqs'
-    labelFile = '../resource/mimic3.allLabels'
-    gcn_emb = pickle.load(open('../resource/gcn_emb_onehot.emb', 'rb'))
-
-    # node2vec Embedding
-    # diagcode_emb = np.load('../resource/node2vec_emb/diagcode_emb.npy')
-    # knowledge_emb = np.load('../resource/node2vec_emb/knowledge_emb.npy')
+    seqFile = '../resource/mimic4.seqs'
+    knowledgeFile = '../resource/mimic4_newTree.seqs'
+    labelFile = '../resource/mimic4.allLabels'
+    gcn_emb = pickle.load(open('../resource/gcn_emb/gcn_emb_onehot.emb', 'rb'))
 
     # gcn Embedding
-    diagcode_emb = gcn_emb[0][:4880]
-    knowledge_emb = gcn_emb[0][4880:]
+    diagcode_emb = gcn_emb[0][:codeCount]
+    knowledge_emb = gcn_emb[0][codeCount:]
 
     train_set, valid_set, test_set = load_data(seqFile, labelFile, knowledgeFile)
     x, y, tree = padMatrix(train_set[0], train_set[1],train_set[2])
@@ -289,7 +285,7 @@ if __name__ == '__main__':
     head7, weights7 = ScaledDotProductAttention(output_dim=128)([tree_emb, head7])
     head8, weights8 = ScaledDotProductAttention(output_dim=128)([tree_emb, head8])
 
-    st = keras.layers.concatenate([head1, head2, head3,head4, head5, head6, head7, head8], axis=-1)
+    st = keras.layers.concatenate([head1, head2, head3, head4, head5, head6, head7, head8], axis=-1)
     model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(st)
     # model_output = keras.layers.Dense(labelCount, activation='softmax', name='main_output')(head1)
 
@@ -298,7 +294,7 @@ if __name__ == '__main__':
     model.compile(optimizer=keras.optimizers.Adam(lr=0.001, decay=0.001), loss='binary_crossentropy')
 
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        filepath='G:\\mimic3_model_save\\model_GCSAM\\test_head\\head_8\\NEW_epoch_{epoch:02d}',
+        filepath='G:\\mimic4_small_model_save\\model_GCSAM\\test_head\\head_8\\NEW_epoch_{epoch:02d}',
         monitor='val_loss',
         save_best_only=True,
         mode='auto')

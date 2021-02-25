@@ -217,9 +217,19 @@ if __name__ == '__main__':
     # tree_test = kame_knowledgematrix(test_set[2])
     # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_KAME\\KAME_128\\KAME_epoch_25')
 
-    # 我们的模型NKAM
+    # 我们的模型
     # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NKAM\\NKAM_128\\NKAM_epoch_90')
-    model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NEW\\NEW_128\\NEW_epoch_90')
+    # model = tf.keras.models.load_model('G:\\mimic4_small_model_save\\model_NEW\\NEW_128\\NEW_epoch_90')
+
+
+    # filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_1\\NEW_epoch_100'
+    # filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_3\\NEW_epoch_100'
+    # filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_4\\NEW_epoch_100'
+    # filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_5\\NEW_epoch_100'
+    # filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_6\\NEW_epoch_99'
+    # filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_7\\NEW_epoch_99'
+    filePath = 'G:\\mimic4_small_model_save\\model_GCSAM\\test_head\head_8\\NEW_epoch_99'
+    model = tf.keras.models.load_model(filePath)
 
     # RNN、RNN+、Dipole、GRAM模型的预测
     # preds = model.predict(x_test, batch_size=100)

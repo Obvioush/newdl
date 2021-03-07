@@ -17,40 +17,52 @@ if __name__ == '__main__':
     mimic4_dropout06 = np.array([0.2025613037391252, 0.24457807525217398, 0.30648915588471665, 0.3268776596660555, 0.3394154468631753, 0.3479311436705673, 0.35207916642979054, 0.35999859169312176, 0.36518403175632386, 0.37447048957882817, 0.3738765148435892, 0.37372537473034984, 0.3800057891643359, 0.385153346266141, 0.37885534673192794, 0.3815782864848437, 0.38132210913242753, 0.3868475399593553, 0.3899909383884445, 0.38879471626866513, 0.3884629096446801, 0.3903996528077065, 0.39326292119542344, 0.38965199422377367, 0.3938779000655433, 0.39182109148438715, 0.39254328358774854, 0.39561574688021456, 0.3925469647793817, 0.3979833626067942, 0.39476113074306507, 0.3974291950327991, 0.39830956010254287, 0.3977742435044725, 0.3966855872248252, 0.39653696913777625, 0.39671643208464374, 0.3964385255655926, 0.39726616496376466, 0.39722657139463396, 0.3974704555316803, 0.39837611612403034, 0.3929087169892069, 0.39419793885811877, 0.401477334176784, 0.3956899901712652, 0.3974015606110688, 0.3964118588860752, 0.3954397834042736, 0.3999276785145655])
     mimic4_dropout08 = np.array([0.22536919790254073, 0.2870344498336406, 0.3156725566212721, 0.33238010172771415, 0.3428813295231154, 0.3521871046512096, 0.3561323219314277, 0.36752303643456624, 0.3671098518991409, 0.37293939456818176, 0.3771066701283889, 0.3801146358440326, 0.3760690788864762, 0.38419847228050663, 0.3875580246684685, 0.38676500292093696, 0.3878846705677795, 0.3891185222897085, 0.3876092082906246, 0.3932355691504361, 0.3910825898165667, 0.3932316757422663, 0.3975370925523023, 0.3962144708969293, 0.3936895067540875, 0.39690530985552086, 0.39361725950437565, 0.3900765373573028, 0.39669700618820364, 0.3947819227426463, 0.3973276804781566, 0.3927869580246489, 0.3999011759385851, 0.40053957355888065, 0.39721210716929156, 0.39826598101243854, 0.398757736130544, 0.3963745492104351, 0.39587855325814647, 0.39819473229044094, 0.396746974089397, 0.4004292086526564, 0.3969780949322487, 0.40062640347045025, 0.39811332368616625, 0.4015439564014284, 0.3996738165759679, 0.3986136103516535, 0.4006729003553398, 0.3995829899627054])
 
-    x_smooth = np.linspace(x.min(), x.max(), 300)
+    # x_smooth = np.linspace(x.min(), x.max(), 300)
 
-    y4_1 = make_interp_spline(x, mimic4_dropout0)(x_smooth)
-    y4_2 = make_interp_spline(x, mimic4_dropout02)(x_smooth)
-    y4_3 = make_interp_spline(x, mimic4_dropout04)(x_smooth)
-    y4_4 = make_interp_spline(x, mimic4_dropout06)(x_smooth)
-    y4_5 = make_interp_spline(x, mimic4_dropout08)(x_smooth)
+    # y4_1 = make_interp_spline(x, mimic4_dropout0)(x_smooth)
+    # y4_2 = make_interp_spline(x, mimic4_dropout02)(x_smooth)
+    # y4_3 = make_interp_spline(x, mimic4_dropout04)(x_smooth)
+    # y4_4 = make_interp_spline(x, mimic4_dropout06)(x_smooth)
+    # y4_5 = make_interp_spline(x, mimic4_dropout08)(x_smooth)
 
     # label在图示(legend)中显示。若为数学公式,则最好在字符串前后添加"$"符号
     # color：b:blue、g:green、r:red、c:cyan、m:magenta、y:yellow、k:black、w:white、、、
     # 线型：-  --   -.  :    ,
     # marker：.  ,   o   v    <    *    +    1
-    plt.figure(figsize=(10, 5), dpi=600)
+    plt.figure(figsize=(9, 6), dpi=300)
     plt.grid(linestyle="--")  # 设置背景网格线为虚线
 
-    plt.plot(x_smooth, y4_1, color="darkorange", label="dropout=0", linewidth=1.5)
-    plt.plot(x_smooth, y4_2, color="forestgreen", label="dropout=0.2", linewidth=1.5)
-    plt.plot(x_smooth, y4_3, color="tab:blue", label="dropout=0.4", linewidth=1.5)
-    plt.plot(x_smooth, y4_4, color="firebrick", label="dropout=0.6", linewidth=1.5)
-    plt.plot(x_smooth, y4_5, color="tab:grey", label="dropout=0.8", linewidth=1.5)
+    # plt.plot(x_smooth, y4_1, color="k", label="dropout=0")
+    # plt.plot(x_smooth, y4_2, color="dimgray", label="dropout=0.2")
+    # plt.plot(x_smooth, y4_3, color="gray", label="dropout=0.4")
+    # plt.plot(x_smooth, y4_4, color="darkgray", label="dropout=0.6")
+    # plt.plot(x_smooth, y4_5, color="silver", label="dropout=0.8")
+
+    plt.plot(x, mimic4_dropout0, linestyle='-',  color='k', label="dropout=0")
+    plt.plot(x, mimic4_dropout02, linestyle='-',  color='grey', label="dropout=0.2")
+    plt.plot(x, mimic4_dropout04, linestyle='--', color='k', label="dropout=0.4")
+    plt.plot(x, mimic4_dropout06, linestyle='--', color='grey', label="dropout=0.6")
+    plt.plot(x, mimic4_dropout08, linestyle='-', marker='.', color='k', label="dropout=0.8")
+
+    # plt.plot(x, mimic4_dropout0, linestyle='-', marker='.', color='k', label="dropout=0")
+    # plt.plot(x, mimic4_dropout02, linestyle='-', marker='^', color='k', label="dropout=0.2")
+    # plt.plot(x, mimic4_dropout04, linestyle='-', color='grey', label="dropout=0.4")
+    # plt.plot(x, mimic4_dropout06, linestyle='--', color='k', label="dropout=0.6")
+    # plt.plot(x, mimic4_dropout08, linestyle='-', color='k', label="dropout=0.8")
 
     group_labels = ['0', '10', '20', '30', '40', '50']  # x轴刻度的标识
-    plt.xticks(x1, group_labels, fontsize=12, fontweight='bold')  # 默认字体大小为10
-    plt.yticks(fontsize=12, fontweight='bold')
-    plt.xlabel("Iterations", fontsize=13, fontweight='bold')
-    plt.ylabel("Recall@5", fontsize=13, fontweight='bold')
+    plt.xticks(x1, group_labels, fontsize=20)  # 默认字体大小为10
+    plt.yticks(fontsize=20)
+    plt.xlabel("Iterations", fontsize=20)
+    plt.ylabel("Recall@5", fontsize=20)
     plt.xlim(0, 51)  # 设置x轴的范围
-    plt.ylim(0.3, 0.42)
+    plt.ylim(0.30, 0.42)
 
     # plt.legend()          #显示各曲线的图例
     plt.legend(loc=0, numpoints=1)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
-    plt.setp(ltext, fontsize=12, fontweight='bold')  # 设置图例字体的大小和粗细
+    plt.setp(ltext, fontsize=20)  # 设置图例字体的大小和粗细
 
-    plt.savefig('./mimic4-dropout.svg', format='svg')  # 建议保存为svg格式,再用在线转换工具转为矢量图emf后插入word中
+    plt.savefig('./mimic4_new_dropout.eps', dpi=300)  # 建议保存为svg格式,再用在线转换工具转为矢量图emf后插入word中
     plt.show()

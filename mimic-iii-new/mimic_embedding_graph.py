@@ -14,21 +14,21 @@ if __name__ == '__main__':
     # 线型：-  --   -.  :    ,
     # marker：.  ,   o   v    <    *    +    1
 
-    plt.figure(figsize=(8, 5), dpi=600)
+    plt.figure(figsize=(9, 6), dpi=300)
     plt.grid(linestyle="--")  # 设置背景网格线为虚线
     # ax = plt.gca()
     # ax.spines['top'].set_visible(False)  # 去掉上边框
     # ax.spines['right'].set_visible(False)  # 去掉右边框
-    plt.plot(x, mimic3, color="tab:blue", marker='h', label="MIMIC-III Dataset", linewidth=1.5)
-    plt.plot(x, mimic4, color="tab:red", marker='^', label="MIMIC-IV Dataset", linewidth=1.5)
+    plt.plot(x, mimic3, color='k', marker='h', label="MIMIC-III Dataset")
+    plt.plot(x, mimic4, color='k', marker='^', label="MIMIC-IV Dataset")
 
 
 
     group_labels = ['50', '100', '150', '200', '250']  # x轴刻度的标识
-    plt.xticks(x, group_labels, fontsize=12, fontweight='bold')  # 默认字体大小为10
-    plt.yticks(fontsize=12, fontweight='bold')
-    plt.xlabel("Embedding size", fontsize=13, fontweight='bold')
-    plt.ylabel("Recall@5", fontsize=13, fontweight='bold')
+    plt.xticks(x, group_labels, fontsize=20)  # 默认字体大小为10
+    plt.yticks(fontsize=20)
+    plt.xlabel("Embedding size", fontsize=20)
+    plt.ylabel("Recall@5", fontsize=20)
     plt.xlim(45, 252)  # 设置x轴的范围
     plt.ylim(0.3, 0.41)
 
@@ -36,8 +36,8 @@ if __name__ == '__main__':
     plt.legend(loc=0, numpoints=1)
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
-    plt.setp(ltext, fontsize=12, fontweight='bold')  # 设置图例字体的大小和粗细
+    plt.setp(ltext, fontsize=20)  # 设置图例字体的大小和粗细
 
 
-    plt.savefig('./mimic-embedding.svg', format='svg')  # 建议保存为svg格式,再用在线转换工具转为矢量图emf后插入word中
+    plt.savefig('./mimic_new_embedding.eps', dpi=300)  # 建议保存为svg格式,再用在线转换工具转为矢量图emf后插入word中
     plt.show()
